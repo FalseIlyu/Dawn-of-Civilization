@@ -35,6 +35,10 @@ def replace_first(string, replace_key, *replace_args):
 
 def replace_shared_words(strings):
 	shared = shared_words(strings)
+	
+	if shared in ["DA", "CB"]:
+		shared = ""
+	
 	strings = [string.replace(shared, "") for string in strings]
 	strings[0] = shared + strings[0]
 	
@@ -70,7 +74,8 @@ def number_word(number):
 
 irregular_plurals = {
 	"Ship of the Line": "Ships of the Line",
-	"Statesman": "Statesmen",
+	"Great Statesman": "Great Statesmen",
+	"cathedral of your state religion": "cathedrals of your state religion",
 }
 
 # TODO: test
