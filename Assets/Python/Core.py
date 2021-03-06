@@ -35,6 +35,9 @@ def replace_first(string, replace_key, *replace_args):
 
 
 def replace_shared_words(strings):
+	if not strings:
+		return strings
+		
 	shared = shared_words(strings)
 	
 	if shared in ["DA", "CB"]:
@@ -73,6 +76,11 @@ def number_word(number):
 	return text_if_exists("TXT_KEY_UHV_NUMBER_%s" % number, otherwise=number)
 
 
+# TODO: test
+def ordinal_word(number):
+	return text_if_exists("TXT_KEY_UHV_ORDINAL_%s" % number, number, otherwise="TXT_KEY_UHV_ORDINAL_DEFAULT")
+
+
 irregular_plurals = {
 	"Ship of the Line": "Ships of the Line",
 	"Great Statesman": "Great Statesmen",
@@ -80,6 +88,9 @@ irregular_plurals = {
 }
 
 def plural(word):
+	if not word:
+		return word
+
 	if word in irregular_plurals:
 		return irregular_plurals[word]
 
@@ -88,6 +99,12 @@ def plural(word):
 	
 	if word.endswith('y'):
 		return re.sub('y$', 'ies', word)
+	
+	if word.endswith('ch') or word.endswith('sh'):
+		return word + 'es'
+	
+	if word.endswith('man'):
+		return re.sub('man$', 'men', word)
 	
 	return word + 's'
 
@@ -657,7 +674,8 @@ def random_entry(iterable):
 		
 	return iterable[rand(len(iterable))]
 	
-	
+
+# TODO: handle identifier=None
 def name(identifier):
 	return player(identifier).getCivilizationShortDescription(0)
 	
@@ -1160,6 +1178,9 @@ class PlotFactory:
 		if iPeriod in dPeriodCapitals:
 			return plot(dPeriodCapitals[iPeriod])
 		return plot(dCapitals[identifier])
+	
+	def capitals(self, identifier):
+		return self.of([self.capital(identifier)])
 		
 	def respawnCapital(self, identifier):
 		if identifier in dRespawnCapitals:
