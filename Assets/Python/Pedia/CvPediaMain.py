@@ -723,12 +723,50 @@ class CvPediaMain(CvPediaScreen.CvPediaScreen):
 
 	def placeGreatWonders(self):
 		lBuildings = []
+		paganBuildings = []
+		secularBuildings = []
+		religionBuildings = dict((iReligion, []) for iReligion in xrange(gc.getNumReligionInfos()))
+
 		for iBuilding in xrange(gc.getNumBuildingInfos()):
 			if getBuildingCategory(iBuilding) == 5:
 				szDescription = gc.getBuildingInfo(iBuilding).getDescription().replace("The ", "")
-				lBuildings.append((szDescription, iBuilding))
+				iReligion = gc.getBuildingInfo(iBuilding).getStateReligion()
+				if iReligion >= 0:
+					religionBuildings[iReligion].append((szDescription, iBuilding))
+					iReligion = gc.getBuildingInfo(iBuilding).getOrStateReligion()
+					if iReligion >= 0:
+						religionBuildings[iReligion].append((szDescription, iBuilding))
+				elif gc.getBuildingInfo(iBuilding).isPagan():
+					paganBuildings.append((szDescription, iBuilding))
+				else:
+					secularBuildings.append((szDescription, iBuilding))
 
-		lBuildings.sort()
+		hReligion = CyTranslator().getText("TXT_KEY_RELIGION_PAGANISM",())
+		if gc.getActivePlayer():
+			hReligion = gc.getCivilizationInfo(gc.getActivePlayer().getCivilizationType()).getPaganReligionName(0)
+		lBuildings.append((hReligion, -1))
+
+		paganBuildings.sort()
+		lBuildings.extend(paganBuildings)
+
+		for iReligion in xrange(gc.getNumReligionInfos()):
+			if not religionBuildings[iReligion]:
+				continue
+
+			hReligion = CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(iReligion).getDescription(), ''))
+			hReligion = hReligion + ' (%s)' % (CyTranslator().getText("TXT_KEY_STATE_RELIGION",()))
+			lBuildings.append(("", -1))
+			lBuildings.append((hReligion, -1))
+
+			religionBuildings[iReligion].sort()
+			lBuildings.extend(religionBuildings[iReligion])
+
+		lBuildings.append(("", -1))
+
+		secularBuildings.sort()
+		lBuildings.extend(secularBuildings)
+
+		#lBuildings.sort()
 		self.list = lBuildings
 		self.placeItems(WidgetTypes.WIDGET_PEDIA_JUMP_TO_BUILDING, gc.getBuildingInfo)
 
