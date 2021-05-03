@@ -722,50 +722,62 @@ class CvPediaMain(CvPediaScreen.CvPediaScreen):
 
 
 	def placeGreatWonders(self):
+		dBuildings = dict()
 		lBuildings = []
-		paganBuildings = []
-		secularBuildings = []
-		religionBuildings = dict((iReligion, []) for iReligion in xrange(gc.getNumReligionInfos()))
 
 		for iBuilding in xrange(gc.getNumBuildingInfos()):
 			if getBuildingCategory(iBuilding) == 5:
 				szDescription = gc.getBuildingInfo(iBuilding).getDescription().replace("The ", "")
-				iReligion = gc.getBuildingInfo(iBuilding).getStateReligion()
-				if iReligion >= 0:
-					religionBuildings[iReligion].append((szDescription, iBuilding))
-					iReligion = gc.getBuildingInfo(iBuilding).getOrStateReligion()
-					if iReligion >= 0:
-						religionBuildings[iReligion].append((szDescription, iBuilding))
-				elif gc.getBuildingInfo(iBuilding).isPagan():
-					paganBuildings.append((szDescription, iBuilding))
+				iStateReligion = gc.getBuildingInfo(iBuilding).getStateReligion()
+				iOrStateReligion = gc.getBuildingInfo(iBuilding).getOrStateReligion()
+				iReligion = gc.getBuildingInfo(iBuilding).getPrereqReligion()
+				iOrReligion = gc.getBuildingInfo(iBuilding).getOrPrereqReligion()
+				bPagan = gc.getBuildingInfo(iBuilding).isPagan()
+				key = ((iReligion, iOrReligion), (iStateReligion, iOrStateReligion))
+				skey = ((iReligion, iOrReligion), (iOrStateReligion, iStateReligion))
+				if bPagan:
+					lBuildings.append((szDescription, iBuilding))
+					continue
+				if key in dBuildings.keys():
+					dBuildings[key].append((szDescription, iBuilding))
+				elif skey in dBuildings.keys():
+					dBuildings[skey].append((szDescription, iBuilding))
 				else:
-					secularBuildings.append((szDescription, iBuilding))
+					dBuildings[key] = [(szDescription, iBuilding)]
 
-		hReligion = CyTranslator().getText("TXT_KEY_RELIGION_PAGANISM",())
+		lBuildings.sort()
+		hPagan = CyTranslator().getText("TXT_KEY_RELIGION_PAGANISM",())
 		if gc.getActivePlayer():
-			hReligion = gc.getCivilizationInfo(gc.getActivePlayer().getCivilizationType()).getPaganReligionName(0)
-		lBuildings.append((hReligion, -1))
+			hPagan = gc.getCivilizationInfo(gc.getActivePlayer().getCivilizationType()).getPaganReligionName(0)
+		lBuildings.insert(0,(hPagan,-1))
 
-		paganBuildings.sort()
-		lBuildings.extend(paganBuildings)
+		lKeys = dBuildings.keys()
+		lKeys.sort()
 
-		for iReligion in xrange(gc.getNumReligionInfos()):
-			if not religionBuildings[iReligion]:
-				continue
+		lastReq = (-1,-1)
+		for key in lKeys[1:]:
+			dBuildings[key].sort()
+			if key[1][0] >= 0:
+				hReligion = '(%s)' % CyTranslator().getText("TXT_KEY_STATE_RELIGION", ())
+				hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[1][0]).getDescription(), ''))
+				if key[1][1] >= 0:
+					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_OR", ())
+					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[1][1]).getDescription(), ''))
+				dBuildings[key].insert(0, (hReligion, -1))
+			if key[0][0] >= 0 and key[0] != lastReq:
+				hReligion = '(%s)' % CyTranslator().getText("TXT_KEY_WB_CITY", ())
+				hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[0][0]).getDescription(), ''))
+				if key[0][1] >= 0:
+					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_OR", ())
+					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[0][1]).getDescription(), ''))
+				dBuildings[key].insert(0, (hReligion, -1))
+				dBuildings[key].insert(0, ("", -1))
 
-			hReligion = CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(iReligion).getDescription(), ''))
-			hReligion = hReligion + ' (%s)' % (CyTranslator().getText("TXT_KEY_STATE_RELIGION",()))
-			lBuildings.append(("", -1))
-			lBuildings.append((hReligion, -1))
+			lBuildings.extend(dBuildings[key])
+			lastReq = key[0]
 
-			religionBuildings[iReligion].sort()
-			lBuildings.extend(religionBuildings[iReligion])
-
-		lBuildings.append(("", -1))
-
-		secularBuildings.sort()
-		lBuildings.extend(secularBuildings)
-
+		dBuildings[((-1,-1),(-1,-1))].insert(0, ("", -1))
+		lBuildings.extend(dBuildings[((-1,-1),(-1,-1))])
 		#lBuildings.sort()
 		self.list = lBuildings
 		self.placeItems(WidgetTypes.WIDGET_PEDIA_JUMP_TO_BUILDING, gc.getBuildingInfo)
