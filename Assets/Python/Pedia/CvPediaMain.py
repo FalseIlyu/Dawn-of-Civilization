@@ -758,18 +758,20 @@ class CvPediaMain(CvPediaScreen.CvPediaScreen):
 		for key in lKeys[1:]:
 			dBuildings[key].sort()
 			if key[1][0] >= 0:
+				if key[1][1] >= 0:
+					hReligion = CyTranslator().getText("TXT_KEY_OR", ())
+					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[1][1]).getDescription(), ''))
+					dBuildings[key].insert(0, (hReligion, -1))
 				hReligion = '(%s)' % CyTranslator().getText("TXT_KEY_STATE_RELIGION", ())
 				hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[1][0]).getDescription(), ''))
-				if key[1][1] >= 0:
-					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_OR", ())
-					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[1][1]).getDescription(), ''))
 				dBuildings[key].insert(0, (hReligion, -1))
 			if key[0][0] >= 0 and key[0] != lastReq:
+				if key[0][1] >= 0:
+					hReligion = CyTranslator().getText("TXT_KEY_OR", ())
+					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[0][1]).getDescription(), ''))
+					dBuildings[key].insert(0, (hReligion, -1))
 				hReligion = '(%s)' % CyTranslator().getText("TXT_KEY_WB_CITY", ())
 				hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[0][0]).getDescription(), ''))
-				if key[0][1] >= 0:
-					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_OR", ())
-					hReligion = hReligion + ' %s' % CyTranslator().getText("TXT_KEY_PEDIA_HEADER_RELIGION", (gc.getReligionInfo(key[0][1]).getDescription(), ''))
 				dBuildings[key].insert(0, (hReligion, -1))
 				dBuildings[key].insert(0, ("", -1))
 
