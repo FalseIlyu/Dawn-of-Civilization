@@ -8,7 +8,7 @@ import heapq
 import CityNameManager as cnm
 from Civics import *
 import BugCore
-from Events import handler
+from Events import handler, events
 
 from Locations import *
 from Core import *
@@ -16,9 +16,6 @@ from Core import *
 AdvisorOpt = BugCore.game.Advisors
 AlertsOpt = BugCore.game.MoreCiv4lerts
 
-### GLOBALS ###
-
-gc = CyGlobalContext()
 
 ### CONSTANTS ###
 
@@ -31,6 +28,7 @@ lColonialResources = [iBanana, iSpices, iSugar, iCoffee, iTea, iTobacco]
 
 # third Thai goal: allow no foreign powers in South Asia in 1900 AD
 lSouthAsianCivs = [iIndia, iTamils, iIndonesia, iKhmer, iMughals, iThailand]
+
 
 ### GOAL CONSTANTS ###
 
@@ -65,7 +63,7 @@ dReligionGoals = {}
 		
 ### EVENT HANDLING ###
 
-@handler("GameStart")
+#@handler("GameStart")
 def setup():
 
 	# 1700 AD scenario: handle dates that have already been passed
@@ -97,19 +95,19 @@ def setup():
 		for iPlayer in players.major().ai():
 			loseAll(iPlayer)
 
-@handler("switch")
+#@handler("switch")
 def onCivSwitch(iPreviousPlayer):
 	if infos.constant('NO_AI_UHV_CHECKS') == 1:
 		loseAll(iPreviousPlayer)
 
-@handler("BeginGameTurn")
+#@handler("BeginGameTurn")
 def aztecUHVHelp():
 	if year() == year(1500) and player(iAztecs).isHuman():
 		city = cities.capital(iEngland)
 		if city and city.getPopulation() > 14:
 				city.changePopulation(-3)
 
-@handler("cityRazed")
+#@handler("cityRazed")
 def onCityRazed(city, iPlayer):
 	iCiv = civ(iPlayer)
 
@@ -124,7 +122,7 @@ def onCityRazed(city, iPlayer):
 			if data.iMongolRazes >= 7:
 				win(iPlayer, 1)
 
-@handler("BeginPlayerTurn")
+#@handler("BeginPlayerTurn")
 def checkTurn(iGameTurn, iPlayer):
 	if not game.isVictoryValid(7): return
 	
@@ -545,15 +543,15 @@ def checkTurn(iGameTurn, iPlayer):
 			tCapital = (capital.getX(), capital.getY())
 			
 			if iGameTurn <= year(900):
-				if not data.tFirstTurkicCapital and capital.getCulture(iPlayer) >= infos.culture(3).getSpeedThreshold(game.getGameSpeedType()):
+				if not data.tFirstTurkicCapital and capital.getCulture(iPlayer) >= infos.cultureLevel(3).getSpeedThreshold(game.getGameSpeedType()):
 					data.tFirstTurkicCapital = tCapital
 			
 			if iGameTurn <= year(1100):
-				if data.tFirstTurkicCapital and not data.tSecondTurkicCapital and tCapital != data.tFirstTurkicCapital and capital.getCulture(iPlayer) >= infos.culture(4).getSpeedThreshold(game.getGameSpeedType()):
+				if data.tFirstTurkicCapital and not data.tSecondTurkicCapital and tCapital != data.tFirstTurkicCapital and capital.getCulture(iPlayer) >= infos.cultureLevel(4).getSpeedThreshold(game.getGameSpeedType()):
 					data.tSecondTurkicCapital = tCapital
 					
 			if iGameTurn <= year(1400):
-				if tCapital != data.tFirstTurkicCapital and tCapital != data.tSecondTurkicCapital and data.tFirstTurkicCapital and data.tSecondTurkicCapital and capital.getCulture(iPlayer) >= infos.culture(5).getSpeedThreshold(game.getGameSpeedType()):
+				if tCapital != data.tFirstTurkicCapital and tCapital != data.tSecondTurkicCapital and data.tFirstTurkicCapital and data.tSecondTurkicCapital and capital.getCulture(iPlayer) >= infos.cultureLevel(5).getSpeedThreshold(game.getGameSpeedType()):
 					win(iPlayer, 2)
 					
 		if iGameTurn == year(900):
@@ -933,10 +931,10 @@ def checkTurn(iGameTurn, iPlayer):
 				win(iPlayer, 1)
 			else:
 				lose(iPlayer, 1)
-			
-		# third goal: allow no other civilisations in South America in 1700 AD
-		if iGameTurn == year(1700):
-			if isAreaOnlyCivs(plots.rectangle(tSouthAmerica), [iCiv]):
+		
+		# third goal: control 90% of the South American population in 1775 AD
+		if iGameTurn == year(1775):
+			if getAreaPopulationPercent(iPlayer, plots.regions(*lSouthAmerica)) >= 90.0:
 				win(iPlayer, 2)
 			else:
 				lose(iPlayer, 2)
@@ -1354,7 +1352,7 @@ def checkTurn(iGameTurn, iPlayer):
 			if 2 * countReligionCities(iPlayer) > pPlayer.getNumCities():
 				data.bPolytheismNeverReligion = False
 				
-			if infos.civ(civ(iPlayer)).getPaganReligionName(0) == "Vedism":
+			if infos.paganReligion(civ(iPlayer)).getDescription() == "Vedism":
 				for city in cities.owner(iPlayer):
 					if city.isWeLoveTheKingDay():
 						data.iVedicHappiness += 1
@@ -1384,7 +1382,7 @@ def checkHistoricalVictory(iPlayer):
 		if countAchievedGoals(iPlayer) == 3:
 			game.setWinner(iPlayer, 7)
 
-@handler("cityBuilt")		
+#@handler("cityBuilt")		
 def onCityBuilt(city):
 	iPlayer = city.getOwner()
 	iCiv = civ(iPlayer)
@@ -1396,7 +1394,7 @@ def onCityBuilt(city):
 	
 	# record first colony in the Americas for various UHVs
 	if not data.isNewWorldColonized():
-		if city.getRegionID() in lNorthAmerica + lSouthAmerica:
+		if city.getRegionID() in lAmerica:
 			if civ(iPlayer) not in dCivGroups[iCivGroupAmerica]:
 				data.iFirstNewWorldColony = iPlayer
 			
@@ -1443,14 +1441,14 @@ def onCityBuilt(city):
 	elif iCiv == iEngland:
 		if isPossible(iPlayer, 0):
 			bNAmerica = getNumCitiesInRegions(iPlayer, lNorthAmerica) >= 5
-			bSCAmerica = getNumCitiesInRegions(iPlayer, lSouthAmerica) >= 3
+			bSCAmerica = getNumCitiesInRegions(iPlayer, lSouthAmerica + lCentralAmerica) >= 3
 			bAfrica = getNumCitiesInRegions(iPlayer, lAfrica) >= 4
 			bAsia = getNumCitiesInRegions(iPlayer, lAsia) >= 5
 			bOceania = getNumCitiesInRegions(iPlayer, lOceania) >= 3
 			if bNAmerica and bSCAmerica and bAfrica and bAsia and bOceania:
 				win(iPlayer, 0)
 
-@handler("cityAcquired")	
+#@handler("cityAcquired")	
 def onCityAcquired(iOwner, iPlayer, city, bConquest):
 	iCiv = civ(iPlayer)
 	pPlayer = player(iPlayer)
@@ -1475,7 +1473,7 @@ def onCityAcquired(iOwner, iPlayer, city, bConquest):
 	elif iCiv == iEngland:
 		if isPossible(iPlayer, 0):
 			bNAmerica = getNumCitiesInRegions(iPlayer, lNorthAmerica) >= 5
-			bSCAmerica = getNumCitiesInRegions(iPlayer, lSouthAmerica) >= 3
+			bSCAmerica = getNumCitiesInRegions(iPlayer, lSouthAmerica + lCentralAmerica) >= 3
 			bAfrica = getNumCitiesInRegions(iPlayer, lAfrica) >= 4
 			bAsia = getNumCitiesInRegions(iPlayer, lAsia) >= 5
 			bOceania = getNumCitiesInRegions(iPlayer, lOceania) >= 3
@@ -1498,7 +1496,7 @@ def onCityAcquired(iOwner, iPlayer, city, bConquest):
 		if bConquest:
 			expire(iPlayer, 1)
 
-@handler("techAcquired")
+#@handler("techAcquired")
 def onTechAcquired(iTech, iTeam, iPlayer):
 	iCiv = civ(iPlayer)
 	pPlayer = player(iPlayer)
@@ -1597,7 +1595,7 @@ def checkTechGoal(iPlayer, lTechs):
 def checkEraGoal(iPlayer, lEras):
 	return all(data.lFirstEntered[iEra] == iPlayer for iEra in lEras)
 
-@handler("buildingBuilt")
+#@handler("buildingBuilt")
 def onBuildingBuilt(city, iBuilding):
 	iPlayer = city.getOwner()
 	iCiv = civ(iPlayer)
@@ -1717,7 +1715,7 @@ def onBuildingBuilt(city, iBuilding):
 def checkWonderGoal(iPlayer, lWonders):
 	return all(data.getWonderBuilder(iWonder) == iPlayer for iWonder in lWonders)
 
-@handler("religionFounded")
+#@handler("religionFounded")
 def onReligionFounded(iReligion, iPlayer):
 
 	if not game.isVictoryValid(7): return
@@ -1739,7 +1737,7 @@ def onReligionFounded(iReligion, iPlayer):
 def checkReligionGoal(iPlayer, lReligions):
 	return all(data.lReligionFounder[iReligion] == iPlayer for iReligion in lReligion)
 
-@handler("projectBuilt")
+#@handler("projectBuilt")
 def onProjectBuilt(city, iProject):
 	if not game.isVictoryValid(7): return
 	iPlayer = city.getOwner()
@@ -1756,7 +1754,7 @@ def onProjectBuilt(city, iProject):
 			else:
 				lose(iRussiaPlayer, 1)
 
-@handler("combatResult")				
+#@handler("combatResult")				
 def onCombatResult(pWinningUnit, pLosingUnit):
 	iWinningPlayer = pWinningUnit.getOwner()
 	iLosingPlayer = pLosingUnit.getOwner()
@@ -1782,7 +1780,7 @@ def onCombatResult(pWinningUnit, pLosingUnit):
 				if data.iKoreanSinks >= 20:
 					win(iWinningPlayer, 2)
 
-@handler("greatPersonBorn")					
+#@handler("greatPersonBorn")					
 def onGreatPersonBorn(unit, iPlayer):
 	iUnitType = base_unit(unit)
 	pUnitInfo = infos.unit(iUnitType)
@@ -1801,7 +1799,7 @@ def onGreatPersonBorn(unit, iPlayer):
 				if data.iMexicanGreatGenerals >= 3:
 					win(iPlayer, 1)
 
-@handler("unitPillage")
+#@handler("unitPillage")
 def onUnitPillage(unit, iImprovement, iRoute, iPlayer, iGold):
 	if iImprovement < 0 or iGold >= 1000: return
 	
@@ -1822,21 +1820,21 @@ def onUnitPillage(unit, iImprovement, iRoute, iPlayer, iGold):
 		if isPossible(iPlayer, 2) and unit.getUnitType() == iCorsair:
 			data.iMoorishGold += iGold
 
-@handler("cityCaptureGold")
+#@handler("cityCaptureGold")
 def onCityCaptureGold(city, iPlayer, iGold):
 	# third Viking goal: acquire 3000 gold by pillaging, conquering cities and sinking ships by 1500 AD
 	if civ(iPlayer) == iVikings:
 		if isPossible(iPlayer, 2):
 			data.iVikingGold += iGold
 
-@handler("playerGoldTrade")
+#@handler("playerGoldTrade")
 def onPlayerGoldTrade(iFrom, iTo, iGold):
 	# third Tamil goal: acquire 4000 gold by trade by 1200 AD
 	if civ(iTo) == iTamils:
 		if isPossible(iTo, 2):
 			data.iTamilTradeGold += iGold * 100
 
-@handler("playerSlaveTrade")
+#@handler("playerSlaveTrade")
 def onPlayerSlaveTrade(iPlayer, iGold):
 	# second Congolese goal: gain 1000 gold through slave trade by 1800 AD
 	if civ(iPlayer) == iCongo:
@@ -1845,7 +1843,7 @@ def onPlayerSlaveTrade(iPlayer, iGold):
 			if data.iCongoSlaveCounter >= scale(1000):
 				win(iPlayer, 1)
 
-@handler("tradeMission")
+#@handler("tradeMission")
 def onTradeMission(iUnit, iPlayer, iX, iY, iGold):
 	iCiv = civ(iPlayer)
 
@@ -1862,7 +1860,7 @@ def onTradeMission(iUnit, iPlayer, iX, iY, iGold):
 				if location(pHolyCity) == (iX, iY):
 					win(iPlayer, 0)
 
-@handler("peaceBrokered")
+#@handler("peaceBrokered")
 def onPeaceBrokered(iBroker, iPlayer1, iPlayer2):
 	iBrokerCiv = civ(iBroker)
 
@@ -1873,7 +1871,7 @@ def onPeaceBrokered(iBroker, iPlayer1, iPlayer2):
 			if data.iCanadianPeaceDeals >= 12:
 				win(iBroker, 2)
 
-@handler("blockade")
+#@handler("blockade")
 def onBlockade(iPlayer, iGold):
 	iCiv = civ(iPlayer)
 
@@ -1882,7 +1880,7 @@ def onBlockade(iPlayer, iGold):
 		if isPossible(iPlayer, 2):
 			data.iMoorishGold += iGold
 
-@handler("firstContact")			
+#@handler("firstContact")			
 def onFirstContact(iPlayer, iHasMetPlayer):
 	# third Maya goal: make contact with a European civilization before they have discovered America
 	iMayaPlayer = slot(iMaya)
@@ -1900,7 +1898,7 @@ def onFirstContact(iPlayer, iHasMetPlayer):
 					lose(iMayaPlayer, 2)
 					return
 
-@handler("playerChangeStateReligion")					
+#@handler("playerChangeStateReligion")					
 def onPlayerChangeStateReligion(iPlayer, iStateReligion):
 	iCiv = civ(iPlayer)
 
@@ -2104,96 +2102,101 @@ def checkReligiousGoal(iPlayer, iGoal):
 			
 		# second Pagan goal: depends on Pagan religion
 		elif iGoal == 1:
-			paganReligion = infos.civ(pPlayer).getPaganReligionName(0)
+			iPaganReligion = infos.civ(pPlayer).getPaganReligion()
 			
 			# Anunnaki: have more wonders in your capital than any other city in the world
-			if paganReligion == "Anunnaki":
+			if iPaganReligion == iAnunnaki:
 				capital = pPlayer.getCapitalCity()
 				
 				if capital and isBestCity(iPlayer, (capital.getX(), capital.getY()), cityWonders):
 					return 1
 					
 			# Asatru: have five units of level five
-			elif paganReligion == "Asatru":
+			elif iPaganReligion == iAsatru:
 				if countUnitsOfLevel(iPlayer, 5) >= 5:
 					return 1
 					
 			# Atua: acquire four pearl resources and 50 Ocean tiles
-			elif paganReligion == "Atua":
+			elif iPaganReligion == iAtua:
 				if pPlayer.getNumAvailableBonuses(iPearls) >= 4 and countControlledTerrain(iPlayer, iOcean) >= 50:
 					return 1
 			
 			# Baalism: make your capital the city with the highest trade income in the world
-			elif paganReligion == "Baalism":
+			elif iPaganReligion == iBaalism:
 				capital = pPlayer.getCapitalCity()
 				
 				if capital and isBestCity(iPlayer, (capital.getX(), capital.getY()), cityTradeIncome):
 					return 1
 			
 			# Bon: control 50 peaks
-			elif paganReligion == "Bon":
+			elif iPaganReligion == iBon:
 				if countControlledPeaks(iPlayer) >= 50:
 					return 1
 					
 			# Druidism: control 20 unimproved Forest or Marsh tiles
-			elif paganReligion == "Druidism":
+			elif iPaganReligion == iDruidism:
 				if countControlledFeatures(iPlayer, iForest, -1) + countControlledFeatures(iPlayer, iMud, -1) >= 20:
 					return 1
 					
 			# Inti: have more gold in your treasury than the rest of the world combined
-			elif paganReligion == "Inti":
+			elif iPaganReligion == iInti:
 				if 2 * pPlayer.getGold() >= getGlobalTreasury():
 					return 1
 					
 			# Mazdaism: acquire six incense resources
-			elif paganReligion == "Mazdaism":
+			elif iPaganReligion == iMazdaism:
 				if pPlayer.getNumAvailableBonuses(iIncense) >= 6:
 					return 1
 					
 			# Olympianism: control ten wonders that require no state religion
-			elif paganReligion == "Olympianism":
+			elif iPaganReligion == iOlympianism:
 				if countReligionWonders(iPlayer, -1) >= 10:
 					return 1
 					
 			# Pesedjet: be the first to create to three different types of great person
-			elif paganReligion == "Pesedjet":
+			elif iPaganReligion == iPesedjet:
 				if countFirstGreatPeople(iPlayer) >= 3:
 					return 1
 				
 			# Rodnovery: acquire seven fur resources
-			elif paganReligion == "Rodnovery":
+			elif iPaganReligion == iRodnovery:
 				if pPlayer.getNumAvailableBonuses(iFur) >= 7:
 					return 1
 					
 			# Shendao: control 25% of the world's population
-			elif paganReligion == "Shendao":
+			elif iPaganReligion == iShendao:
 				if getPopulationPercent(iPlayer) >= 25.0:
 					return 1
 					
 			# Shinto: settle three great spies in your capital
-			elif paganReligion == "Shinto":
+			elif iPaganReligion == iShinto:
 				capital = pPlayer.getCapitalCity()
 				
 				if capital and countCitySpecialists(iPlayer, capital, iSpecialistGreatSpy) >= 3:
 					return 1
 			
 			# Tengri: acquire eight horse resources
-			elif paganReligion == "Tengri":
+			elif iPaganReligion == iTengri:
 				if pPlayer.getNumAvailableBonuses(iHorse) >= 8:
 					return 1
 				
-			# Teotl: sacrifice ten slaves
-			elif paganReligion == "Teotl":
-				if data.iTeotlSacrifices >= 10 or data.iTeotlFood >= scale(50):
+			# Teotl (Maya): gain 50 food from combat
+			elif iPaganReligion == iTeotlMaya:
+				if data.iTeotlFood >= scale(50):
+					return 1
+			
+			# Teotl (Aztecs): sacrifice ten slaves
+			elif iPaganReligion == iTeotlAztec:
+				if data.iTeotlSacrifices >= 10:
 					return 1
 					
 			# Vedism: have 100 turns of cities celebrating "We Love the King" day
-			elif paganReligion == "Vedism":
+			elif iPaganReligion == iVedism:
 				if data.iVedicHappiness >= 100:
 					return 1
 					
 			# Yoruba: acquire eight ivory resources and six gem resources
-			elif paganReligion == "Yoruba":
+			elif iPaganReligion == iYoruba:
 				if pPlayer.getNumAvailableBonuses(iIvory) >= 8 and pPlayer.getNumAvailableBonuses(iGems) >= 6:
 					return 1
 			
@@ -2344,6 +2347,15 @@ def getPopulationPercent(iPlayer):
 	iOurPopulation = team(iPlayer).getTotalPopulation()
 	
 	if iTotalPopulation <= 0: return 0.0
+	
+	return iOurPopulation * 100.0 / iTotalPopulation
+
+def getAreaPopulationPercent(iPlayer, area):
+	iTotalPopulation = area.cities().sum(CyCity.getPopulation)
+	iOurPopulation = area.cities().owner(iPlayer).sum(CyCity.getPopulation)
+	
+	if iTotalPopulation <= 0:
+		return 0.0
 	
 	return iOurPopulation * 100.0 / iTotalPopulation
 	
@@ -2753,7 +2765,7 @@ def countUnitsOfType(iPlayer, lTypes, bIncludeObsolete=False):
 	return iCount
 	
 def calculateShrineIncome(iPlayer, iReligion):
-	if getNumBuildings(iPlayer, iShrine  + 4*iReligion) == 0: return 0
+	if getNumBuildings(iPlayer, iShrine + 4*iReligion) == 0: return 0
 	
 	iThreshold = 20
 	if getNumBuildings(iPlayer, iDomeOfTheRock) > 0 and not team(iPlayer).isHasTech(iLiberalism): iThreshold = 40
@@ -3060,9 +3072,9 @@ def getURVHelp(iPlayer, iGoal):
 def getPaganGoalHelp(iPlayer):
 	iCiv = civ(iPlayer)
 	pPlayer = player(iPlayer)
-	paganReligion = infos.civ(pPlayer).getPaganReligionName(0)
+	iPaganReligion = infos.civ(iCiv).getPaganReligion()
 
-	if paganReligion == "Anunnaki":
+	if iPaganReligion == iAnunnaki:
 		x, y = 0, 0
 		capital = pPlayer.getCapitalCity()
 		
@@ -3075,16 +3087,16 @@ def getPaganGoalHelp(iPlayer):
 			sBestCity = pBestCity.getName()
 		return getIcon(bBestCity) + text("TXT_KEY_VICTORY_CITY_WITH_MOST_WONDERS", sBestCity)
 		
-	elif paganReligion == "Asatru":
+	elif iPaganReligion == iAsatru:
 		iCount = countUnitsOfLevel(iPlayer, 5)
 		return getIcon(iCount >= 5) + text("TXT_KEY_VICTORY_UNITS_OF_LEVEL", 5, iCount, 5)
 		
-	elif paganReligion == "Atua":
+	elif iPaganReligion == iAtua:
 		iNumPearls = pPlayer.getNumAvailableBonuses(iPearls)
 		iOceanTiles = countControlledTerrain(iPlayer, iOcean)
 		return getIcon(iNumPearls >= 4) + text("TXT_KEY_VICTORY_AVAILABLE_RESOURCES", infos.bonus(iPearls).getText().lower(), iNumPearls, 4) + ' ' + getIcon(iOceanTiles >= 50) + text("TXT_KEY_VICTORY_CONTROLLED_OCEAN_TILES", iOceanTiles, 50)
 		
-	elif paganReligion == "Baalism":
+	elif iPaganReligion == iBaalism:
 		x, y = 0, 0
 		capital = pPlayer.getCapitalCity()
 		
@@ -3094,24 +3106,24 @@ def getPaganGoalHelp(iPlayer):
 		bBestCity = isBestCity(iPlayer, (x, y), cityTradeIncome)
 		return getIcon(bBestCity) + text("TXT_KEY_VICTORY_HIGHEST_TRADE_CITY", pBestCity.getName())
 		
-	elif paganReligion == "Bon":
+	elif iPaganReligion == iBon:
 		iNumPeaks = countControlledPeaks(iPlayer)
 		return getIcon(iNumPeaks >= 50) + text("TXT_KEY_VICTORY_CONTROLLED_PEAKS", iNumPeaks, 50)
 		
-	elif paganReligion == "Druidism":
+	elif iPaganReligion == iDruidism:
 		iCount = countControlledFeatures(iPlayer, iForest, -1) + countControlledFeatures(iPlayer, iMud, -1)
 		return getIcon(iCount >= 20) + text("TXT_KEY_VICTORY_CONTROLLED_FOREST_AND_MARSH_TILES", iCount, 20)
 	
-	elif paganReligion == "Inti":
+	elif iPaganReligion == iInti:
 		iOurTreasury = pPlayer.getGold()
 		iWorldTreasury = getGlobalTreasury()
 		return getIcon(2 * iOurTreasury >= iWorldTreasury) + text("TXT_KEY_VICTORY_TOTAL_GOLD", iOurTreasury, iWorldTreasury - iOurTreasury)
 	
-	elif paganReligion == "Mazdaism":
+	elif iPaganReligion == iMazdaism:
 		iCount = pPlayer.getNumAvailableBonuses(iIncense)
 		return getIcon(iCount >= 6) + text("TXT_KEY_VICTORY_AVAILABLE_RESOURCES", infos.bonus(iIncense).getText().lower(), iCount, 6)
 	
-	elif paganReligion == "Mugyo":
+	elif iPaganReligion == iMugyo:
 		x, y = 0, 0
 		capital = pPlayer.getCapitalCity()
 		
@@ -3125,45 +3137,45 @@ def getPaganGoalHelp(iPlayer):
 			
 		return getIcon(bBestCity) + text("TXT_KEY_VICTORY_CITY_WITH_MOST_GREAT_PEOPLE", sBestCity)
 	
-	elif paganReligion == "Olympianism":
+	elif iPaganReligion == iOlympianism:
 		iCount = countReligionWonders(iPlayer, -1)
 		return getIcon(iCount >= 10) + text("TXT_KEY_VICTORY_NUM_NONRELIGIOUS_WONDERS", iCount, 10)
 		
-	elif paganReligion == "Pesedjet":
+	elif iPaganReligion == iPesedjet:
 		iCount = countFirstGreatPeople(iPlayer)
 		return getIcon(iCount >= 3) + text("TXT_KEY_VICTORY_FIRST_GREAT_PEOPLE", iCount, 3)
 	
-	elif paganReligion == "Rodnovery":
+	elif iPaganReligion == iRodnovery:
 		iCount = pPlayer.getNumAvailableBonuses(iFur)
 		return getIcon(iCount >= 7) + text("TXT_KEY_VICTORY_AVAILABLE_RESOURCES", infos.bonus(iFur).getText().lower(), iCount, 7)
 	
-	elif paganReligion == "Shendao":
+	elif iPaganReligion == iShendao:
 		fPopulationPercent = getPopulationPercent(iPlayer)
 		return getIcon(fPopulationPercent >= 25.0) + text("TXT_KEY_VICTORY_PERCENTAGE_WORLD_POPULATION", "%.2f%%" % fPopulationPercent, 25)
 	
-	elif paganReligion == "Shinto":
+	elif iPaganReligion == iShinto:
 		capital = pPlayer.getCapitalCity()
 		iCount = 0
 		if capital: iCount = countCitySpecialists(iPlayer, (capital.getX(), capital.getY()), iSpecialistGreatSpy)
 		return getIcon(iCount >= 3) + text("TXT_KEY_VICTORY_CAPITAL_GREAT_SPIES", iCount, 3)
 	
-	elif paganReligion == "Tengri":
+	elif iPaganReligion == iTengri:
 		iCount = pPlayer.getNumAvailableBonuses(iHorse)
 		return getIcon(iCount >= 8) + text("TXT_KEY_VICTORY_AVAILABLE_RESOURCES", infos.bonus(iHorse).getText().lower(), iCount, 8)
 	
-	elif paganReligion == "Teotl":
-		if iCiv == iMaya:
-			iCount = data.iTeotlFood
-			return getIcon(iCount >= scale(50)) + text("TXT_KEY_VICTORY_FOOD_FROM_COMBAT", iCount, scale(50))
+	elif iPaganReligion == iTeotlMaya:
+		iCount = data.iTeotlFood
+		return getIcon(iCount >= scale(50)) + text("TXT_KEY_VICTORY_FOOD_FROM_COMBAT", iCount, scale(50))
 	
+	elif iPaganReligion == iTeotlAztec:
 		iCount = data.iTeotlSacrifices
 		return getIcon(iCount >= 10) + text("TXT_KEY_VICTORY_SACRIFICED_SLAVES", iCount, 10)
 	
-	elif paganReligion == "Vedism":
+	elif iPaganReligion == iVedism:
 		iCount = data.iVedicHappiness
 		return getIcon(iCount >= 100) + text("TXT_KEY_VICTORY_WE_LOVE_RULER_TURNS", iCount, 100)
 	
-	elif paganReligion == "Yoruba":
+	elif iPaganReligion == iYoruba:
 		iNumIvory = pPlayer.getNumAvailableBonuses(iIvory)
 		iNumGems = pPlayer.getNumAvailableBonuses(iGems)
 		return getIcon(iNumIvory >= 8) + text("TXT_KEY_VICTORY_AVAILABLE_RESOURCES", infos.bonus(iIvory).getText().lower(), iNumIvory, 8) + ' ' + getIcon(iNumGems >= 6) + text("TXT_KEY_VICTORY_AVAILABLE_RESOURCES", infos.bonus(iGems).getText().lower(), iNumGems, 6)
@@ -3456,7 +3468,7 @@ def getUHVHelp(iPlayer, iGoal):
 			if pPlayer.getNumCities() > 0:
 				capital = pPlayer.getCapitalCity()
 				iCulture = capital.getCulture(iPlayer)
-				iRequiredCulture = infos.culture(iCultureLevel).getSpeedThreshold(game.getGameSpeedType())
+				iRequiredCulture = infos.cultureLevel(iCultureLevel).getSpeedThreshold(game.getGameSpeedType())
 			
 				if location(capital) in [data.tFirstTurkicCapital, data.tSecondTurkicCapital]:
 					aHelp.append(getIcon(False) + text("TXT_KEY_VICTORY_NO_NEW_CAPITAL"))
@@ -3565,7 +3577,7 @@ def getUHVHelp(iPlayer, iGoal):
 	elif iCiv == iEngland:
 		if iGoal == 0:
 			iNAmerica = getNumCitiesInRegions(iPlayer, lNorthAmerica)
-			iSCAmerica = getNumCitiesInRegions(iPlayer, lSouthAmerica)
+			iSCAmerica = getNumCitiesInRegions(iPlayer, lSouthAmerica + lCentralAmerica)
 			iAfrica = getNumCitiesInRegions(iPlayer, lAfrica)
 			iAsia = getNumCitiesInRegions(iPlayer, lAsia)
 			iOceania = getNumCitiesInRegions(iPlayer, lOceania)
@@ -3669,8 +3681,8 @@ def getUHVHelp(iPlayer, iGoal):
 			iTreasury = pPlayer.getGold()
 			aHelp.append(getIcon(iTreasury >= turns(2500)) + text("TXT_KEY_VICTORY_TOTAL_GOLD", iTreasury, turns(2500)))
 		elif iGoal == 2:
-			bSouthAmerica = isAreaOnlyCivs(plots.rectangle(tSouthAmerica), [iCiv])
-			aHelp.append(getIcon(bSouthAmerica) + text("TXT_KEY_VICTORY_NO_FOREIGN_CITIES_SOUTH_AMERICA"))
+			fPopulationPercent = getAreaPopulationPercent(iPlayer, plots.regions(*lSouthAmerica))
+			aHelp.append(getIcon(fPopulationPercent >= 90.0) + text("TXT_KEY_VICTORY_PERCENTAGE_AREA_POPULATION", text("TXT_KEY_VICTORY_SOUTH_AMERICA"), "%.2f%%" % fPopulationPercent, 90))
 
 	elif iCiv == iItaly:
 		if iGoal == 0:

@@ -12,9 +12,11 @@ import Popup
 import BugCore
 
 import random
+import re
+import types
 
-from traceback import extract_stack
 from sets import Set
+from itertools import groupby
 
 from BugEventManager import g_eventManager as events
 
@@ -27,6 +29,89 @@ translator = CyTranslator()
 engine = CyEngine()
 game = gc.getGame()
 map = gc.getMap()
+
+irregular_plurals = {
+	"Ship of the Line": "Ships of the Line",
+	"Great Statesman": "Great Statesmen",
+	"cathedral of your state religion": "cathedrals of your state religion",
+}
+
+def unique(iterable):
+	return [key for key, value in groupby(iterable)]
+
+
+def chunks(list, length):
+	return [list[i:i+length] for i in xrange(0, len(list), length)]
+
+
+def since(iTurn):
+	return turn() - iTurn
+
+
+def bool_metric(func, *args):
+	return lambda value: int(func(value, *args))
+
+
+def metrics(*metrics):
+	return lambda *args: tuple(metric(*args) for metric in metrics)
+
+
+def replace_first(string, replace_key, *replace_args):
+	first = string.split(" ", -1)[0]
+	return string.replace(first, text(replace_key, *concat(first, replace_args)))
+
+
+def replace_shared_words(strings):
+	if not strings:
+		return strings
+		
+	shared = shared_words(strings)
+	
+	if shared in ["DA", "CB"]:
+		shared = ""
+	
+	strings = [string.replace(shared, "") for string in strings]
+	strings[0] = shared + strings[0]
+	
+	return strings
+
+
+def shared_words(strings):
+	strings = [string.split(" ") for string in strings]
+
+	index = 0
+	for words in zip(*strings):
+		if not all(word == words[0] for word in words):
+			break
+		index += 1
+	
+	return " ".join(strings[0][:index])
+
+
+def capitalize(string):
+	if not string:
+		return string
+		
+	capitalized = string[0].upper()
+	if len(string) > 1:
+		capitalized += string[1:]
+
+	return capitalized
+
+
+def uncapitalize(string):
+	if not string:
+		return string
+	
+	uncapitalized = string[0].lower()
+	if len(string) > 1:
+		uncapitalized += string[1:]
+	
+	return uncapitalized
+
+
+def number_word(number):
+	return text_if_exists("TXT_KEY_UHV_NUMBER_%s" % number, otherwise=number)
 
 
 def since(iTurn):
@@ -42,10 +127,97 @@ def getPlayerExperience(unit):
 	return iExperience
 
 
+def ordinal_word(number):
+	return text_if_exists("TXT_KEY_UHV_ORDINAL_%s" % number, otherwise="%d%s" % (number, text("TXT_KEY_UHV_ORDINAL_DEFAULT_SUFFIX")))
+
+
+def plural(word):
+	if not word:
+		return word
+
+	if word in irregular_plurals:
+		return irregular_plurals[word]
+
+	if word.endswith('s'):
+		return word
+	
+	if word.endswith('y'):
+		return re.sub('y$', 'ies', word)
+	
+	if word.endswith('ch') or word.endswith('sh'):
+		return word + 'es'
+	
+	if word.endswith('man'):
+		return re.sub('man$', 'men', word)
+	
+	return word + 's'
+
+
+def format_date(year):
+	return text(year >= 0 and "TXT_KEY_YEAR_AD" or "TXT_KEY_YEAR_BC", abs(year))
+
+
+def duplefy(*items):
+	if len(items) == 2:
+		return (items[0], items[1])
+	elif len(items) == 1:
+		return items[0]
+	raise Exception("Excepted 2 or less values, got: %s" % (items,))
+
+
+def variadic(*items):
+	if len(items) == 1:
+		if isinstance(items[0], types.GeneratorType):
+			return items[0]
+		return listify(items[0])
+	return listify(items)
+
+
+def listify(item):
+	if isinstance(item, list):
+		return item
+	if isinstance(item, (tuple, set)):
+		return list(item)
+	if isinstance(item, types.GeneratorType):
+		return [x for x in item]
+	if item is None:
+		return []
+	return [item]
+
+
+def concat(*lists):
+	return sum((listify(list) for list in lists), [])
+
+
+def equals(func):
+	def equals_func(*args):
+		remaining, objective = args[:-1], args[-1]
+		return func(*remaining) == objective
+	return equals_func
+
+
+def positive(func):
+	def positive_func(*args):
+		return func(*args) > 0
+	return positive_func
+
+
+def average(value, count):
+	def average_function(arg):
+		if count(arg) == 0:
+			return 0.0
+		return 1.0 * value(arg) / count(arg)
+	return average_function
+
+
+def isWonder(iBuilding):
+	return isWorldWonderClass(infos.building(iBuilding).getBuildingClassType())
+
+
 def log_with_trace(context):
 	print "%s called near:" % context
 	stacktrace()
-	
+
 
 # TODO: is there a right equal or right not equal to add to Civ so we can do iPlayer == iEgypt and convert iPlayer to Civ implicitly?
 
@@ -57,6 +229,9 @@ def sign(x):
 
 
 def capital(identifier):
+	if identifier is None:
+		raise ValueError("identifier cannot be None")
+
 	if player(identifier).getNumCities() == 0 or is_minor(identifier):
 		return None
 		
@@ -117,14 +292,9 @@ def periodic_from(entities, interval=None):
 	return entities[(turn() + offset) % interval]
 
 
-def get_calling_module():
-	trace = [call[0] for call in extract_stack() if call[0] != 'Core']
-	return trace[-1]
-
-
 def periodic(interval):
 	interval = turns(interval)
-	index = period_offsets(interval)
+	index = data.period_offsets(interval)
 	offset = (index / 2 + ((index + interval) % 2) * interval / 2 ) % interval
 	return turn() % interval == offset
 
@@ -181,8 +351,18 @@ def owner(entity, identifier):
 	return entity.getOwner() == identifier
 
 
-def count(iterable, condition):
+def count(iterable, condition = bool):
 	return len([x for x in iterable if condition(x)])
+
+
+def format_separators_shared(list, separator, last_separator, format=lambda x: x):
+	list = [format(item) for item in list]
+	list = replace_shared_words(list)
+	
+	reverse_list = [element[::-1] for element in list[::-1]]
+	list = [element[::-1].strip() for element in replace_shared_words(reverse_list)][::-1]
+	
+	return format_separators(list, separator, last_separator)
 
 
 def format_separators(list, separator, last_separator, format=lambda x: x):
@@ -232,11 +412,9 @@ def closestCity(entity, owner=PlayerTypes.NO_PLAYER, same_continent=False, coast
 		return None
 	return city
 
+
 def specialbuilding(iType, iReligion):
-	lBuildings = [iBuilding for iBuilding in range(iNumBuildings) if infos.building(iBuilding).getSpecialBuildingType() == iType and infos.building(iBuilding).getReligionType() == iReligion]
-	if lBuildings:
-		return lBuildings[0]
-	return None
+	return next(iBuilding for iBuilding in range(iNumBuildings) if infos.building(iBuilding).getSpecialBuildingType() == iType and infos.building(iBuilding).getReligionType() == iReligion)
 	
 	
 def temple(iReligion):
@@ -249,6 +427,10 @@ def monastery(iReligion):
 	
 def cathedral(iReligion):
 	return specialbuilding(infos.type('SPECIALBUILDING_CATHEDRAL'), iReligion)
+
+
+def shrine(iReligion):
+	return next(iBuilding for iBuilding in range(iNumBuildings) if infos.building(iBuilding).getGlobalReligionCommerce() == iReligion)
 
 
 def permutations(first, second):
@@ -281,21 +463,15 @@ def next(iterator, default = None):
 		return default
 
 
-def retrieve(dict, key, otherwise=None):
-	if key in dict:
-		return dict[key]
-	return otherwise
-
-
 def message(iPlayer, key, *format, **settings):
-	iColor = retrieve(settings, 'color', otherwise=iWhite)
-	iEvent = retrieve(settings, 'event', otherwise=0)
-	iButton = retrieve(settings, 'button', otherwise='')
+	iColor = settings.get('color', iWhite)
+	iEvent = settings.get('event', 0)
+	iButton = settings.get('button', '')
 	
-	sound = retrieve(settings, 'sound', otherwise='')
-	force = retrieve(settings, 'force', otherwise=False)
+	sound = settings.get('sound', '')
+	force = settings.get('force', False)
 	
-	tile = retrieve(settings, 'location')
+	tile = settings.get('location')
 	iX, iY = -1, -1
 	if tile:
 		iX, iY = location(tile)
@@ -488,8 +664,11 @@ def debug(message, *format):
 
 
 def show(message, *format):
+	if format:
+		message = message % tuple(format)
+
 	popup = Popup.PyPopup()
-	popup.setBodyString(message % tuple(format))
+	popup.setBodyString(message)
 	popup.launch()
 
 
@@ -534,16 +713,22 @@ def random_entry(iterable):
 		
 	return iterable[rand(len(iterable))]
 	
-	
+
 def name(identifier):
+	if identifier is None:
+		raise ValueError("identifier cannot be None")
 	return player(identifier).getCivilizationShortDescription(0)
 	
 
 def fullname(identifier):
+	if identifier is None:
+		raise ValueError("identifier cannot be None")
 	return player(identifier).getCivilizationDescription(0)
 
 
 def adjective(identifier):
+	if identifier is None:
+		raise ValueError("identifier cannot be None")
 	return player(identifier).getCivilizationAdjective(0)
 
 
@@ -602,7 +787,7 @@ def unit(key):
 	
 def location(entity):
 	if not entity:
-		raise ValueError("Location is None")
+		return None
 
 	if isinstance(entity, (CyPlot, CyCity, CyUnit)):
 		return entity.getX(), entity.getY()
@@ -713,9 +898,11 @@ class EntityCollection(object):
 		except Exception, e:
 			raise Exception("%s: %s" % (e, type(keys)))
 		
+		self._name = ""
+		
 	def __getitem__(self, index):
 		return self.entities()[index]
-		
+	
 	def __add__(self, other):
 		if other is None: return self
 		if not isinstance(other, type(self)):
@@ -732,9 +919,11 @@ class EntityCollection(object):
 		return str(self.entities())
 		
 	def __eq__(self, other):
-		if isinstance(other, type(self)):
-			return self._keys == other._keys
-		raise TypeError("Cannot compare '%s' and '%s'" % (type(self), type(other)))
+		if other is None:
+			return False
+		if not isinstance(other, type(self)):
+			return False
+		return self._keys == other._keys
 			
 	def __ne__(self, other):
 		return not self.__eq__(other)
@@ -767,6 +956,9 @@ class EntityCollection(object):
 			return self.count() <= other
 		raise TypeError("Cannot compare '%s' and '%s'" % (type(self), type(other)))
 		
+	def copy(self, keys):
+		return self.__class__(list(keys)).clear_named(self.name())
+		
 	def same(self, other):
 		if isinstance(other, type(self)):
 			return set(self._keys) == set(other._keys)
@@ -776,7 +968,7 @@ class EntityCollection(object):
 		return [self._factory(k) for k in self._keys]
 		
 	def where(self, condition):
-		return self.__class__([k for k in self._keys if condition(self._factory(k))])
+		return self.copy(k for k in self._keys if condition(self._factory(k)))
 		
 	def any(self, condition = None):
 		if condition is None: return bool(self)
@@ -787,6 +979,9 @@ class EntityCollection(object):
 		
 	def none(self, condition = None):
 		return not self.any(condition)
+	
+	def all_if_any(self, condition):
+		return self.any() and self.all(condition)
 		
 	def random(self):
 		return random_entry(self.entities())
@@ -804,13 +999,13 @@ class EntityCollection(object):
 		return self.first()
 	
 	def empty(self):
-		return self.__class__([])
+		return self.copy([])
 	
 	def sample(self, iSampleSize):
 		if not self: return self.empty()
 		iSampleSize = min(iSampleSize, len(self))
 		if iSampleSize <= 0: return self.empty()
-		return self.__class__(random.sample(self._keys, iSampleSize))
+		return self.copy(random.sample(self._keys, iSampleSize))
 		
 	def buckets(self, *conditions):
 		rest = lambda e: not any(condition(e) for condition in conditions)
@@ -823,10 +1018,10 @@ class EntityCollection(object):
 	
 	def percentage_split(self, iPercent):
 		iSplit = self.count() * iPercent / 100
-		return self.__class__(self._keys[:iSplit]), self.__class__(self._keys[iSplit:])
+		return self.copy(self._keys[:iSplit]), self.copy(self._keys[iSplit:])
 		
 	def sort(self, metric, reverse=False):
-		return self.__class__(sort(self._keys, key=lambda k: metric(self._factory(k)), reverse=reverse))
+		return self.copy(sort(self._keys, key=lambda k: metric(self._factory(k)), reverse=reverse))
 		
 	def highest(self, iNum=1, metric=lambda x: x):
 		return self.sort(metric, True).limit(iNum)
@@ -841,10 +1036,10 @@ class EntityCollection(object):
 			elif isinstance(keys[0], list):
 				keys = keys[0]
 		combined = [self._keyify(key) for key in list(self._keys) + list(keys)]
-		return self.__class__(sorted(set(combined), key=combined.index))
-		
+		return self.copy(sorted(set(combined), key=combined.index))
+	
 	def limit(self, iLimit):
-		return self.__class__(self._keys[:iLimit])
+		return self.copy(self._keys[:iLimit])
 	
 	def count(self, condition = lambda x: True):
 		return count(self, condition)
@@ -862,7 +1057,7 @@ class EntityCollection(object):
 	def shuffle(self):
 		shuffled = self._keys[:]
 		random.shuffle(shuffled)
-		return self.__class__(shuffled)
+		return self.copy(shuffled)
 		
 	def fraction(self, iDenominator):
 		return self.limit(self.count() / iDenominator)
@@ -872,9 +1067,14 @@ class EntityCollection(object):
 		
 	def sum(self, value):
 		return sum(value(e) for e in self.entities())
+	
+	def average(self, value):
+		if not self:
+			return 0.0
+		return 1.0 * self.sum(value) / self.count()
 		
 	def transform(self, cls, map = lambda x: x, condition = lambda x: x):
-		return cls([map(k) for k in self._keys if condition(self._factory(k))])
+		return cls([map(k) for k in self._keys if condition(self._factory(k))]).clear_named(self.name())
 
 	def periodic(self, iInterval):
 		return periodic_from(self.entities(), iInterval)
@@ -890,16 +1090,38 @@ class EntityCollection(object):
 
 	def divide(self, keys):
 		shuffled_keys = self.shuffle()._keys[:]
-		return [(key, self.__class__([key for j, key in enumerate(shuffled_keys) if j % len(keys) == i])) for i, key in enumerate(keys)]
+		return [(key, self.copy(key for j, key in enumerate(shuffled_keys) if j % len(keys) == i)) for i, key in enumerate(keys)]
 	
 	def index(self, key):
 		return self.entities().index(key)
 	
 	def unique(self):
-		return self.__class__([k for k in set(self._keys)])
+		return self.copy(k for k in set(self._keys))
 	
 	def valued(self, func):
 		return ((entity, func(entity)) for entity in self)
+
+	def take(self, iNum):
+		return self.limit(iNum).entities() + [None] * max(0, iNum-self.count())
+	
+	def enrich(self, func):
+		enrich = self.copy([])
+		for key in self._keys:
+			enrich += func(key)
+		enriched = self + enrich
+		return enriched.unique()
+	
+	def named(self, key):
+		return self.clear_named(text("TXT_KEY_AREA_NAME_%s" % key))
+	
+	def clear_named(self, name):
+		self._name = name
+		return self
+	
+	def name(self):
+		return self._name
+
+
 
 class PlotsCorner:
 
@@ -916,6 +1138,9 @@ class PlotFactory:
 
 	def of(self, list):
 		return Plots(list)
+	
+	def lazy(self):
+		return LazyPlotFactory()
 
 	def start(self, *args):
 		x, y = _parse_tile(*args)
@@ -932,6 +1157,9 @@ class PlotFactory:
 	def all(self):
 		return self.start(0, 0).end(iWorldX, iWorldY)
 		
+	def none(self):
+		return self.of([])
+		
 	def regions(self, *regions):
 		return self.all().where(lambda p: p.getRegionID() in regions)
 		
@@ -939,7 +1167,7 @@ class PlotFactory:
 		return self.regions(iRegion)
 		
 	def surrounding(self, *args, **kwargs):
-		radius = retrieve(kwargs, 'radius', 1)
+		radius = kwargs.get('radius', 1)
 		if radius < 0: raise ValueError("radius cannot be negative, received: '%d'" % radius)
 		x, y = _parse_tile(*args)
 		if not isinstance(x, int): raise Exception("x must be int, is %s" % type(x))
@@ -947,7 +1175,7 @@ class PlotFactory:
 		return Plots(sort(list(set(wrap(x+i, y+j) for i in range(-radius, radius+1) for j in range(-radius, radius+1)))))
 		
 	def ring(self, *args, **kwargs):
-		radius = retrieve(kwargs, 'radius', 1)
+		radius = kwargs.get('radius', 1)
 		circle = self.surrounding(*args, **kwargs)
 		inside = self.surrounding(*args, **{'radius': radius-1})
 		return circle.without(inside)
@@ -962,7 +1190,7 @@ class PlotFactory:
 		return self.all().owner(iPlayer)
 
 	def area(self, dArea, dExceptions, identifier):
-		return self.rectangle(*dArea[identifier]).without(dExceptions[identifier])
+		return self.rectangle(*dArea[identifier]).without(dExceptions[identifier]).clear_named(infos.civ(identifier).getShortDescription(0))
 
 	def birth(self, identifier, extended=None):
 		if extended is None: extended = isExtendedBirth(identifier)
@@ -998,6 +1226,9 @@ class PlotFactory:
 		if iPeriod in dPeriodCapitals:
 			return plot(dPeriodCapitals[iPeriod])
 		return plot(dCapitals[identifier])
+	
+	def capitals(self, identifier):
+		return self.of([self.capital(identifier)])
 		
 	def respawnCapital(self, identifier):
 		if identifier in dRespawnCapitals:
@@ -1008,6 +1239,15 @@ class PlotFactory:
 		if identifier in dNewCapitals:
 			return plot(dNewCapitals[identifier])
 		return self.respawnCapital(identifier)
+
+
+class LazyPlotFactory:
+
+	def capital(self, iPlayer):
+		return LazyPlots.capital(iPlayer)
+	
+	def normal(self, iPlayer):
+		return LazyPlots.normal(iPlayer)
 
 
 class Locations(EntityCollection):
@@ -1055,8 +1295,6 @@ class Locations(EntityCollection):
 	
 	def owners(self):
 		return Players(set(loc.getOwner() for loc in self.entities() if loc.getOwner() >= 0))
-	
-	
 
 
 class Plots(Locations):
@@ -1097,6 +1335,9 @@ class Plots(Locations):
 	def water(self):
 		return self.where(lambda p: p.isWater())
 		
+	def coastal(self):
+		return self.where(lambda p: p.isCoastalLand())
+		
 	def core(self, iPlayer):
 		return self.where(lambda p: p.isCore(iPlayer))
 		
@@ -1111,6 +1352,96 @@ class Plots(Locations):
 	
 	def no_enemies(self, iPlayer):
 		return self.where(lambda p: units.at(p).atwar(iPlayer).none())
+
+
+class LazyPlots(object):
+
+	def __init__(self, getter):
+		self.getter = getter
+	
+	def __getattr__(self, name):
+		return getattr(self.getter(), name)
+		
+	@staticmethod
+	def capital(iPlayer):
+		return LazyPlots(lambda: plots.all().where(lambda p: at(p, capital(iPlayer))))
+	
+	@staticmethod
+	def normal(iPlayer):
+		return LazyPlots(lambda: plots.normal(iPlayer))
+
+
+class DeferredCollectionFactory(object):
+
+	def __init__(self, factory):
+		self.factory = factory
+	
+	def __getattr__(self, name):
+		return getattr(DeferredCollection(self.factory), name)
+	
+	@staticmethod
+	def plots():
+		return DeferredCollectionFactory(PlotFactory())
+
+
+class DeferredCollection(object):
+
+	def __init__(self, factory):
+		self.factory = factory
+		self.calls = []
+		self._name = ""
+	
+	def __getattr__(self, name):
+		def call_adder(*args):
+			self.calls.append((name, args))
+			
+			if args and isinstance(args[0], Civ):
+				self.clear_named(infos.civ(args[0]).getShortDescription(0))
+			
+			return self
+		return call_adder
+	
+	def __iter__(self):
+		return iter(self.create())
+	
+	def initial(self):
+		return self.factory
+	
+	def create(self):
+		instance = self.initial()
+		for func_name, args in self.calls:
+			instance = getattr(instance, func_name)(*args)
+			
+		if isinstance(instance, Plots) and self._name:
+			instance.clear_named(self.name())
+		
+		return instance
+	
+	def named(self, key):
+		return self.clear_named(text("TXT_KEY_AREA_NAME_%s" % key))
+	
+	def clear_named(self, name):
+		self._name = name
+		return self
+	
+	def name(self):
+		return self._name
+	
+	def __add__(self, other):
+		if isinstance(other, DeferredCollection):
+			return CombinedDeferredCollection(self, other)
+		raise ValueError("Can only add DeferredCollections, found: '%s'" % type(other))
+
+
+class CombinedDeferredCollection(DeferredCollection):
+
+	def __init__(self, left, right):
+		super(CombinedDeferredCollection, self).__init__(None)
+		self.left = left
+		self.right = right
+	
+	def initial(self):
+		return self.left.create() + self.right.create()
 
 		
 class CitiesCorner:
@@ -1357,6 +1688,9 @@ class Units(EntityCollection):
 	def types(self):
 		return [unit.getUnitType() for unit in self]
 	
+	def combat(self, iUnitCombatType):
+		return self.where(lambda u: u.getUnitCombatType() == iUnitCombatType)
+	
 
 class PlayerFactory:
 
@@ -1383,6 +1717,9 @@ class PlayerFactory:
 		
 	def vassals(self, iPlayer):
 		return self.all().where(lambda p: team(p).isVassal(player(iPlayer).getTeam()))
+	
+	def defensivePacts(self, iPlayer):
+		return self.all().where(lambda p: team(p).isDefensivePact(player(iPlayer).getTeam()))
 		
 	def none(self):
 		return Players([])
@@ -1392,6 +1729,9 @@ class PlayerFactory:
 	
 	def at_war(self, iPlayer):
 		return self.all().at_war(iPlayer)
+	
+	def allies(self, iPlayer):
+		return self.of(iPlayer).enrich(self.defensivePacts).enrich(self.vassals)
 
 		
 class Players(EntityCollection):
@@ -1498,6 +1838,9 @@ class Players(EntityCollection):
 	
 	def religion(self, iReligion):
 		return self.where(lambda p: player(p).getStateReligion() == iReligion)
+	
+	def defensivePacts(self):
+		return players.all().where(lambda p1: self.any(lambda p2: team(p1).isDefensivePact(player(p2).getTeam())))
 		
 		
 class CreatedUnits(object):
@@ -1510,12 +1853,15 @@ class CreatedUnits(object):
 		
 	def __iter__(self):
 		return iter(self._units)
+	
+	def __add__(self, other):
+		return CreatedUnits(self._units + other._units)
 		
 	def adjective(self, adjective):
 		if not adjective:
 			return self
 	
-		for unit in self._units:
+		for unit in self:
 			unit.setName('%s %s' % (text(adjective), unit.getName()))
 			
 		return self
@@ -1524,13 +1870,13 @@ class CreatedUnits(object):
 		if iExperience <= 0:
 			return self
 	
-		for unit in self._units:
+		for unit in self:
 			unit.changeExperience(iExperience, 100, False, False, False)
 			
 		return self
 		
 	def one(self):
-		if len(self._units) == 1:
+		if len(self) == 1:
 			return self._units[0]
 		raise Exception('Can only return one unit if it is a single created unit')
 
@@ -1567,7 +1913,7 @@ class InfoCollection(EntityCollection):
 		self.info_class = infoClass
 		
 	def where(self, condition):
-		return self.__class__([k for k in self._keys if condition(self._factory(k))], self.info_class)
+		return self.__class__([k for k in self._keys if condition(k)], self.info_class)
 	
 	def __contains__(self, item):
 		return item in self._keys
@@ -1583,6 +1929,18 @@ class InfoCollection(EntityCollection):
 		
 
 class Infos:
+	
+	def info(self, type):
+		return info_types[type][0]
+	
+	def of(self, type):
+		return info_types[type][1](self)
+	
+	def get(self, type, identifier):
+		return self.info(type)(self, identifier)
+	
+	def text(self, type, identifier):
+		return self.get(type, identifier).getText()
 
 	def type(self, string):
 		type = gc.getInfoTypeForString(string)
@@ -1592,44 +1950,15 @@ class Infos:
 		
 	def constant(self, string):
 		return gc.getDefineINT(string)
-
-	def civ(self, identifier):
-		if isinstance(identifier, (CyTeam, CyPlayer, CyPlot, CyCity, CyUnit)):
-			return gc.getCivilizationInfo(civ(identifier))
+		
+	def art(self, string):
+		return gc.getInterfaceArtInfo(self.type(string)).getPath()
 	
-		return gc.getCivilizationInfo(identifier)
-		
-	def religion(self, iReligion):
-		return gc.getReligionInfo(iReligion)
-		
-	def gameSpeed(self, iGameSpeed = None):
-		if iGameSpeed is None:
-			iGameSpeed = game.getGameSpeedType()
-		return gc.getGameSpeedInfo(iGameSpeed)
-		
-	def unit(self, identifier):
-		if isinstance(identifier, CyUnit):
-			return gc.getUnitInfo(identifier.getUnitType())
-			
-		if isinstance(identifier, int):
-			return gc.getUnitInfo(identifier)
-			
-		raise TypeError("Expected identifier to be CyUnit or unit type ID, got '%s'" % type(identifier))
-		
-	def feature(self, identifier):
-		if isinstance(identifier, CyPlot):
-			return gc.getFeatureInfo(identifier.getFeatureType())
-			
-		if isinstance(identifier, int):
-			return gc.getFeatureInfo(identifier)
-			
-		raise TypeError("Expected identifier to be CyPlot or feature type ID, got '%s'" % type(identifier))
-		
-	def tech(self, iTech):
-		return gc.getTechInfo(iTech)
+	def attitude(self, identifier):
+		return gc.getAttitudeInfo(identifier)
 	
-	def techs(self):
-		return InfoCollection.type(gc.getTechInfo, iNumTechs)
+	def attitudes(self):
+		return InfoCollection.type(gc.getAttitudeInfo, AttitudeTypes.NUM_ATTITUDE_TYPES)
 		
 	def bonus(self, identifier):
 		if isinstance(identifier, CyPlot):
@@ -1639,33 +1968,100 @@ class Infos:
 			return gc.getBonusInfo(identifier)
 			
 		raise TypeError("Expected identifier to be CyPlot or bonus type ID, got '%s'" % type(identifier))
+	
+	def bonuses(self):
+		return InfoCollection.type(gc.getBonusInfo, gc.getNumBonusInfos())
 		
-	def handicap(self):
-		return gc.getHandicapInfo(game.getHandicapType())
+	def build(self, identifier):
+		return gc.getBuildInfo(identifier)
+	
+	def builds(self):
+		return InfoCollection.type(gc.getBuildInfo, gc.getNumBuildInfos())
 		
-	def corporations(self):
-		return InfoCollection.type(gc.getCorporationInfo, iNumCorporations)
+	def building(self, identifier):
+		return gc.getBuildingInfo(identifier)
+	
+	def buildings(self):
+		return InfoCollection.type(gc.getBuildingInfo, gc.getNumBuildingInfos())
+		
+	def buildingClass(self, identifier):
+		return gc.getBuildingClassInfo(identifier)
+	
+	def buildingClasses(self, identifier):
+		return InfoCollection.type(gc.getBuildingClassInfo, gc.getNumBuildingClassInfos())
+
+	def civ(self, identifier):
+		if isinstance(identifier, (CyTeam, CyPlayer, CyPlot, CyCity, CyUnit)):
+			return gc.getCivilizationInfo(civ(identifier))
+	
+		return gc.getCivilizationInfo(identifier)
+	
+	def civs(self):
+		return InfoCollection.type(gc.getCivilizationInfo, gc.getNumCivilizationInfos())
+	
+	def civic(self, identifier):
+		return gc.getCivicInfo(identifier)
+	
+	def civics(self):
+		return InfoCollection.type(gc.getCivicInfo, gc.getNumCivicInfos())
+		
+	def commerce(self, identifier):
+		return gc.getCommerceInfo(identifier)
+	
+	def commerces(self, identifier):
+		return InfoCollection.type(gc.getCommerceInfo, CommerceTypes.NUM_COMMERCE_TYPES)
 		
 	def corporation(self, identifier):
 		return gc.getCorporationInfo(identifier)
 		
-	def building(self, identifier):
-		return gc.getBuildingInfo(identifier)
+	def corporations(self):
+		return InfoCollection.type(gc.getCorporationInfo, gc.getNumCorporationInfos())
+	
+	def cultureLevel(self, identifier):
+		return gc.getCultureLevelInfo(identifier)
+	
+	def cultureLevels(self):
+		return InfoCollection.type(gc.getCultureLevelInfo, gc.getNumCultureLevelInfos())
+	
+	def era(self, identifier):
+		return gc.getEraInfo(identifier)
+	
+	def eras(self):
+		return InfoCollection.type(gc.getEraInfo, gc.getNumEraInfos())
 		
-	def art(self, string):
-		return gc.getInterfaceArtInfo(self.type(string)).getPath()
+	def feature(self, identifier):
+		if isinstance(identifier, CyPlot):
+			return gc.getFeatureInfo(identifier.getFeatureType())
+			
+		if isinstance(identifier, int):
+			return gc.getFeatureInfo(identifier)
+			
+		raise TypeError("Expected identifier to be CyPlot or feature type ID, got '%s'" % type(identifier))
+	
+	def features(self):
+		return InfoCollection.type(gc.getFeatureInfo, gc.getNumFeatureInfos())
 		
-	def commerce(self, identifier):
-		return gc.getCommerceInfo(identifier)
+	def gameSpeed(self, iGameSpeed = None):
+		if iGameSpeed is None:
+			iGameSpeed = game.getGameSpeedType()
+		return gc.getGameSpeedInfo(iGameSpeed)
+	
+	def gameSpeeds(self):
+		return InfoCollection.type(gc.getGameSpeedInfo, gc.getNumGameSpeedInfos())
 		
-	def promotions(self):
-		return InfoCollection.type(gc.getPromotionInfo, gc.getNumPromotionInfos())
+	def handicap(self, identifier=None):
+		if identifier is None:
+			identifier = game.getHandicapType()
+		return gc.getHandicapInfo(identifier)
+	
+	def handicaps(self):
+		return InfoCollection.type(gc.getHandicapInfo, gc.getNumHandicapInfos())
 		
-	def promotion(self, identifier):
-		return gc.getPromotionInfo(identifier)
-		
-	def project(self, identifier):
-		return gc.getProjectInfo(identifier)
+	def improvement(self, identifier):
+		return gc.getImprovementInfo(identifier)
+	
+	def improvements(self):
+		return InfoCollection.type(gc.getImprovementInfo, gc.getNumImprovementInfos())
 	
 	def leader(self, identifier):
 		if isinstance(identifier, CyPlayer):
@@ -1675,24 +2071,106 @@ class Infos:
 			return gc.getLeaderHeadInfo(identifier)
 			
 		raise TypeError("Expected identifier to be CyPlayer or leaderhead ID, got: '%s'" % type(identifier))
-		
-	def improvement(self, identifier):
-		return gc.getImprovementInfo(identifier)
-		
-	def buildingClass(self, identifier):
-		return gc.getBuildingClassInfo(identifier)
-		
-	def culture(self, identifier):
-		return gc.getCultureLevelInfo(identifier)
 	
-	def era(self, identifier):
-		return gc.getEraInfo(identifier)
+	def leaders(self):
+		return InfoCollection.of(gc.getLeaderHeadInfo, gc.getNumLeaderHeadInfos())
 	
-	def civic(self, identifier):
-		return gc.getCivicInfo(identifier)
+	def paganReligion(self, identifier):
+		if isinstance(identifier, Civ):
+			return self.paganReligion(self.civ(identifier).getPaganReligion())
 	
-	def civics(self):
-		return InfoCollection.type(gc.getCivicInfo, gc.getNumCivicInfos())
+		return gc.getPaganReligionInfo(identifier)
+	
+	def paganReligions(self):
+		return InfoCollection.type(gc.getPaganReligionInfo, gc.getNumPaganReligionInfos())
+		
+	def promotion(self, identifier):
+		return gc.getPromotionInfo(identifier)
+		
+	def promotions(self):
+		return InfoCollection.type(gc.getPromotionInfo, gc.getNumPromotionInfos())
+		
+	def project(self, identifier):
+		return gc.getProjectInfo(identifier)
+
+	def projects(self):
+		return InfoCollection.type(gc.getProjectInfo, gc.getNumProjectInfos())
+		
+	def religion(self, iReligion):
+		return gc.getReligionInfo(iReligion)
+	
+	def religions(self):
+		return InfoCollection.type(gc.getReligionInfo, gc.getNumReligionInfos())
+	
+	def route(self, identifier):
+		return gc.getRouteInfo(identifier)
+	
+	def routes(self):
+		return InfoCollection.type(gc.getRouteInfo, gc.getNumRouteInfos())
+	
+	def specialist(self, identifier):
+		return gc.getSpecialistInfo(identifier)
+	
+	def specialists(self):
+		return InfoCollection.type(gc.getSpecialistInfo, gc.getNumSpecialistInfos())
+		
+	def tech(self, iTech):
+		return gc.getTechInfo(iTech)
+	
+	def techs(self):
+		return InfoCollection.type(gc.getTechInfo, iNumTechs)
+	
+	def terrain(self, iTerrain):
+		return gc.getTerrainInfo(iTerrain)
+	
+	def terrains(self):
+		return InfoCollection.type(gc.getTerrainInfo, gc.getNumTerrainInfos())
+		
+	def unit(self, identifier):
+		if isinstance(identifier, CyUnit):
+			return gc.getUnitInfo(identifier.getUnitType())
+			
+		if isinstance(identifier, int):
+			return gc.getUnitInfo(identifier)
+			
+		raise TypeError("Expected identifier to be CyUnit or unit type ID, got '%s'" % type(identifier))
+	
+	def units(self):
+		return InfoCollection.type(gc.getUnitInfo, gc.getNumUnitInfos())
+	
+	def unitCombat(self, iUnitCombat):
+		return gc.getUnitCombatInfo(iUnitCombat)
+	
+	def unitCombats(self):
+		return InfoCollection.type(gc.getUnitCombatInfo, gc.getNumUnitCombatInfos())
+
+
+info_types = {
+	AttitudeTypes: (Infos.attitude, Infos.attitudes),
+	CvBonusInfo: (Infos.bonus, Infos.bonuses),
+	CvBuildInfo: (Infos.build, Infos.builds),
+	CvBuildingInfo: (Infos.building, Infos.buildings),
+	CvBuildingClassInfo: (Infos.buildingClass, Infos.buildingClasses),
+	CvCivilizationInfo: (Infos.civ, Infos.civs),
+	CvCommerceInfo: (Infos.commerce, Infos.commerces),
+	CvCorporationInfo: (Infos.corporation, Infos.corporations),
+	CvCultureLevelInfo: (Infos.cultureLevel, Infos.cultureLevels),
+	CvEraInfo: (Infos.era, Infos.eras),
+	CvFeatureInfo: (Infos.feature, Infos.features),
+	CvGameSpeedInfo: (Infos.gameSpeed, Infos.gameSpeeds),
+	CvHandicapInfo: (Infos.handicap, Infos.handicaps),
+	CvImprovementInfo: (Infos.improvement, Infos.improvements),
+	CvLeaderHeadInfo: (Infos.leader, Infos.leaders),
+	CvPromotionInfo: (Infos.promotion, Infos.promotions),
+	CvProjectInfo: (Infos.project, Infos.projects),
+	CvReligionInfo: (Infos.religion, Infos.religions),
+	CvRouteInfo: (Infos.route, Infos.routes),
+	CvSpecialistInfo: (Infos.specialist, Infos.specialists),
+	CvTechInfo: (Infos.tech, Infos.techs),
+	CvTerrainInfo: (Infos.terrain, Infos.terrains),
+	CvUnitInfo: (Infos.unit, Infos.units),
+	UnitCombatTypes: (Infos.unitCombat, Infos.unitCombats),
+}
 
 
 class Map(object):
@@ -1735,28 +2213,6 @@ class Map(object):
 			self[originX + x, originY + y] = value
 
 
-class PeriodOffsets(object):
-
-	def __init__(self):
-		self.turn = 0
-		self.offsets = defaultdict({}, 0)
-		
-	def __call__(self, interval):
-		self._check_invalidate()
-		calling = get_calling_module()
-		offset = self.offsets[(calling, interval)]
-		self.offsets[(calling, interval)] += 1
-		return offset
-		
-	def _check_invalidate(self):
-		if turn() > self.turn:
-			self._invalidate()
-	
-	def _invalidate(self):
-		self.turn = turn()
-		self.offsets = defaultdict({}, 0)
-
-
 class TechFactory(object):
 
 	def of(self, *techs):
@@ -1794,7 +2250,7 @@ class TechCollection(object):
 		return self
 		
 	def techs(self):
-		techs = [i for i in infos.techs().where(lambda tech: tech.getEra() <= self.iEra or tech.getGridX() <= self.iColumn)]
+		techs = [i for i in infos.techs().where(lambda iTech: infos.tech(iTech).getEra() <= self.iEra or infos.tech(iTech).getGridX() <= self.iColumn)]
 		techs += [i for i in self.included if i not in techs]
 		techs = [i for i in techs if i not in self.excluded]
 		
@@ -1810,7 +2266,6 @@ units = UnitFactory()
 players = PlayerFactory()
 techs = TechFactory()
 infos = Infos()
-period_offsets = PeriodOffsets()
 
 plot_ = plot
 city_ = city

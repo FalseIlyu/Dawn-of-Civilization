@@ -6625,7 +6625,7 @@ int CvPlot::calculateNatureYield(YieldTypes eYield, TeamTypes eTeam, bool bIgnor
 	//Rhye - start UP
 	if (isPeak())
 	{
-		if (eTeam != NO_TEAM && GET_PLAYER(GET_TEAM(eTeam).getLeaderID()).getCivilizationType() == INCA && GET_PLAYER(GET_TEAM(eTeam).getLeaderID()).getPeriod() == NO_PERIOD)
+		if (eTeam != NO_TEAM && GET_PLAYER(GET_TEAM(eTeam).getLeaderID()).getCivilizationType() == INCA && (GET_PLAYER(GET_TEAM(eTeam).getLeaderID()).getPeriod() == NO_PERIOD || GET_PLAYER(GET_TEAM(eTeam).getLeaderID()).getPeriod() == PERIOD_LATE_INCA))
 		{
 			if (eYield == YIELD_FOOD) 
 			{
@@ -6637,7 +6637,9 @@ int CvPlot::calculateNatureYield(YieldTypes eYield, TeamTypes eTeam, bool bIgnor
 			}
 		}
 		else
+		{
 			return 0;
+		}
 	}
 	//Rhye - end UP
 
@@ -11449,7 +11451,7 @@ int CvPlot::getCultureConversionRate() const
 void CvPlot::setCultureConversion(PlayerTypes ePlayer, int iRate)
 {
 	m_eCultureConversionPlayer = iRate <= 0 ? NO_PLAYER : ePlayer;
-	m_iCultureConversionRate = iRate > 0 ? std::max((int)m_iCultureConversionRate, iRate) : 0;
+	m_iCultureConversionRate = iRate > 0 ? iRate : 0;
 
 	updateCulture(true, true);
 

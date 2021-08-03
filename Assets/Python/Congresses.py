@@ -411,10 +411,10 @@ class Congress:
 			if bHumanClaim:
 				event = self.bribery_result.text("TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_SUCCESS", name(iBribedPlayer))
 			else:
-				event = self.bribery_result.text("TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_FAILURE", name(iBribedPlayer))
+				event = self.bribery_result.text("TXT_KEY_CONGRESS_BRIBE_THEIR_CLAIM_SUCCESS", name(iBribedPlayer))
 		else:
 			if bHumanClaim:
-				event = self.bribery_result.text("TXT_KEY_CONGRESS_BRIBE_THEIR_CLAIM_SUCCESS", name(iBribedPlayer))
+				event = self.bribery_result.text("TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_FAILURE", name(iBribedPlayer))
 			else:
 				event = self.bribery_result.text("TXT_KEY_CONGRESS_BRIBE_THEIR_CLAIM_FAILURE", name(iBribedPlayer))
 		
@@ -811,19 +811,20 @@ class Congress:
 			if team(iClaimant).isVassal(iVoter): iFavorClaimant += 10
 			if team(iOwner).isVassal(iVoter): iFavorOwner += 10
 			
-			# French UP
-			if civ(iClaimant) == iFrance: iFavorClaimant += 10
-			if civ(iOwner) == iFrance: iFavorOwner += 10
+			if not plot.isCore(iOwner) or plot.isCore(iClaimant):
+				# French UP
+				if civ(iClaimant) == iFrance: iFavorClaimant += 10
+				if civ(iOwner) == iFrance: iFavorOwner += 10
 			
-			# Palace of Nations
-			if player(iClaimant).isHasBuildingEffect(iPalaceOfNations): iFavorClaimant += 10
+				# Palace of Nations
+				if player(iClaimant).isHasBuildingEffect(iPalaceOfNations): iFavorClaimant += 10
 			
 			# AI memory of human voting behavior
 			if player(iClaimant).isHuman() and iVoter in self.dVotingMemory: iFavorClaimant += 5 * self.dVotingMemory[iVoter]
 			if player(iOwner).isHuman() and iVoter in self.dVotingMemory: iFavorOwner += 5 * self.dVotingMemory[iVoter]
 			
 		# if we don't dislike them, agree with the value of their claim
-		#if pVoter.AI_getAttitude(iClaimant) >= AttitudeTypes.ATTITUDE_CAUTIOUS: iClaimValidity += iClaimValue
+		if pVoter.AI_getAttitude(iClaimant) >= AttitudeTypes.ATTITUDE_CAUTIOUS: iClaimValidity += iClaimValue
 			
 		# French UP
 		if civ(iClaimant) == iFrance: iClaimValidity += 5
@@ -844,10 +845,10 @@ class Congress:
 			if iClaimantValue >= 90:
 				iClaimValidity += max(1, iClaimantValue / 100)
 
-			# Europeans support colonialism unless they want the plot for themselves
+			# Europeans support colonialism unless they want the plot for themselves (not against Western civs)
 			if civ(iVoter) in dCivGroups[iCivGroupEurope]:
 				if civ(iClaimant) in dCivGroups[iCivGroupEurope]:
-					if not bOwner or civ(iOwner) not in dCivGroups[iCivGroupEurope]:
+					if not bOwner or civ(iOwner) not in dTechGroups[iTechGroupWestern]:
 						if plot.getSettlerValue(iVoter) < 90:
 							iClaimValidity += 10
 							
@@ -1150,7 +1151,7 @@ class Congress:
 		# remove settled plots with the same name
 		lPlots = [(x, y, value) for index, (x, y, value) in enumerate(lPlots) if city_(x, y) or cnm.getFoundName(iPlayer, (x, y)) not in [cnm.getFoundName(iPlayer, (ix, iy)) for (ix, iy, ivalue) in lPlots[:index]]]
 		
-		return lPlots
+		return lPlots[:10]
 		
 	def getHighestRankedPlayers(self, lPlayers, iNumPlayers):
 		return players.of(lPlayers).highest(iNumPlayers, game.getPlayerRank)

@@ -1415,7 +1415,6 @@ void CvPlayerAI::AI_conquerCity(CvCity* pCity, PlayerTypes ePreviousOwner, Playe
             if (GC.getGameINLINE().getSorenRandNum(100, "AI Raze City") < iRazeValue)
 			{
 				bRaze = true;
-				log(CvWString::format(L"AI chose raze: %s", pCity->getNameKey()));
 				pCity->raze(iCaptureGold);
 				return;
 			}
@@ -1486,17 +1485,14 @@ void CvPlayerAI::AI_conquerCity(CvCity* pCity, PlayerTypes ePreviousOwner, Playe
 
 	if (bSack)
 	{
-		log(CvWString::format(L"AI chose sack: %s", pCity->getNameKey()));
 		pCity->sack(eHighestCulturePlayer, iCaptureGold);
 	}
 	else if (bSpare)
 	{
-		log(CvWString::format(L"AI chose spare: %s", pCity->getNameKey()));
 		pCity->spare(iCaptureGold);
 	}
 	else
 	{
-		log(CvWString::format(L"AI chose conquest: %s", pCity->getNameKey()));
 		pCity->completeAcquisition(iCaptureGold);
 	}
 
@@ -5432,7 +5428,7 @@ int CvPlayerAI::AI_getDifferentReligionAttitude(PlayerTypes ePlayer) const
 	iAttitude = 0;
 
 	// Leoreth: if state religion, even have negative relations with non-state religion civs
-	if ((getStateReligion() != NO_RELIGION) && (getStateReligion() != GET_PLAYER(ePlayer).getStateReligion()))
+	if ((GET_PLAYER(ePlayer).getStateReligion() != NO_RELIGION) && (getStateReligion() != GET_PLAYER(ePlayer).getStateReligion()))
 	{
 		// Leoreth: no penalties between Confucianism and Taoism
 		if (((getStateReligion() == CONFUCIANISM) && (GET_PLAYER(ePlayer).getStateReligion() == TAOISM)) || ((getStateReligion() == TAOISM) && (GET_PLAYER(ePlayer).getStateReligion() == CONFUCIANISM)))
@@ -14074,73 +14070,131 @@ void CvPlayerAI::AI_doDiplo()
 									}
 								
 									// edead: start Relic trade based on Afforess' Advanced Diplomacy
-									//if (GET_TEAM(getTeam()).getLeaderID() == getID())
+									if (AI_getContactTimer(((PlayerTypes)iI), CONTACT_TRADE_SLAVE) == 0)
 									{
-										if (AI_getContactTimer(((PlayerTypes)iI), CONTACT_TRADE_SLAVE) == 0 && countRequiredSlaves() > 0)
+										if (GC.getGameINLINE().getSorenRandNum(GC.getLeaderHeadInfo(getPersonalityType()).getContactRand(CONTACT_TRADE_SLAVE), "AI Diplo Trade Relic") == 0)
 										{
-											if (GC.getGameINLINE().getSorenRandNum(GC.getLeaderHeadInfo(getPersonalityType()).getContactRand(CONTACT_TRADE_SLAVE), "AI Diplo Trade Relic") == 0)
+											if (countRequiredSlaves() > 0)
 											{
-												//if (GET_TEAM(getTeam()).isHasEmbassy(GET_PLAYER((PlayerTypes)iI).getTeam()))
-												//{
-													CvUnit* pSlave = NULL;
-
-													for (CvUnit* pLoopUnit = GET_PLAYER((PlayerTypes)iI).firstUnit(&iLoop); pLoopUnit != NULL; pLoopUnit = GET_PLAYER((PlayerTypes)iI).nextUnit(&iLoop))
+												CvUnit* pSlave = NULL;
+												for (CvUnit* pLoopUnit = GET_PLAYER((PlayerTypes)iI).firstUnit(&iLoop); pLoopUnit != NULL; pLoopUnit = GET_PLAYER((PlayerTypes)iI).nextUnit(&iLoop))
+												{
+													if (pLoopUnit->canTradeUnit(getID()))
 													{
-														if (pLoopUnit->canTradeUnit(getID()))
+														setTradeItem(&item, TRADE_SLAVE, pLoopUnit->getID());
+														//if they can trade the worker to us
+														if (GET_PLAYER((PlayerTypes)iI).canTradeItem(getID(), item, true))
 														{
-															setTradeItem(&item, TRADE_SLAVE, pLoopUnit->getID());
-															//if they can trade the worker to us
-															if (GET_PLAYER((PlayerTypes)iI).canTradeItem(getID(), item, true))
-															{
-																pSlave = pLoopUnit;
-																break;
-															}
+															pSlave = pLoopUnit;
+															break;
 														}
 													}
-													if (pSlave != NULL)
+												}
+
+												if (pSlave != NULL)
+												{
+													iTheirValue = GET_PLAYER((PlayerTypes)iI).AI_slaveTradeVal(pSlave);
+													iGold = AI_maxGoldTrade((PlayerTypes)iI);
+													if (iGold >= iTheirValue && iTheirValue > 0)
 													{
-														iTheirValue = GET_PLAYER((PlayerTypes)iI).AI_slaveTradeVal(pSlave);
-														iGold = AI_maxGoldTrade((PlayerTypes)iI);
-														if (iGold >= iTheirValue && iTheirValue > 0)
+														setTradeItem(&item, TRADE_GOLD, iTheirValue);
+														//if we can trade the gold to them
+														if (canTradeItem((PlayerTypes)iI, item, true))
 														{
+															ourList.clear();
+															theirList.clear();
+
 															setTradeItem(&item, TRADE_GOLD, iTheirValue);
-															//if we can trade the gold to them
-															if (canTradeItem((PlayerTypes)iI, item, true))
+															ourList.insertAtEnd(item);
+
+															setTradeItem(&item, TRADE_SLAVE, pSlave->getID());
+															theirList.insertAtEnd(item);
+
+															if (GET_PLAYER((PlayerTypes)iI).isHuman())
 															{
-																ourList.clear();
-																theirList.clear();
-
-																setTradeItem(&item, TRADE_GOLD, iTheirValue);
-																ourList.insertAtEnd(item);
-																	
-																setTradeItem(&item, TRADE_SLAVE, pSlave->getID());
-																theirList.insertAtEnd(item);
-
-																if (GET_PLAYER((PlayerTypes)iI).isHuman())
+																if (!(abContacted[GET_PLAYER((PlayerTypes)iI).getTeam()]))
 																{
-																	if (!(abContacted[GET_PLAYER((PlayerTypes)iI).getTeam()]))
-																	{
-																		AI_changeContactTimer(((PlayerTypes)iI), CONTACT_TRADE_SLAVE, GC.getLeaderHeadInfo(getPersonalityType()).getContactDelay(CONTACT_TRADE_SLAVE));
-																		pDiplo = new CvDiploParameters(getID());
-																		FAssertMsg(pDiplo != NULL, "pDiplo must be valid");
-																		pDiplo->setDiploComment((DiploCommentTypes)GC.getInfoTypeForString("AI_DIPLOCOMMENT_OFFER_DEAL"));
-																		pDiplo->setAIContact(true);
-																		pDiplo->setOurOfferList(theirList);
-																		pDiplo->setTheirOfferList(ourList);
-																		//If using RevDCM, use AI_beginDiplomacy, otherwise, use gDLL->beginDiplomacy()
-																		gDLL->beginDiplomacy(pDiplo, (PlayerTypes)iI);
-																		//AI_beginDiplomacy(pDiplo, (PlayerTypes)iI);
-																		abContacted[GET_PLAYER((PlayerTypes)iI).getTeam()] = true;
-																	}
+																	AI_changeContactTimer(((PlayerTypes)iI), CONTACT_TRADE_SLAVE, GC.getLeaderHeadInfo(getPersonalityType()).getContactDelay(CONTACT_TRADE_SLAVE));
+																	pDiplo = new CvDiploParameters(getID());
+																	FAssertMsg(pDiplo != NULL, "pDiplo must be valid");
+																	pDiplo->setDiploComment((DiploCommentTypes)GC.getInfoTypeForString("AI_DIPLOCOMMENT_OFFER_DEAL"));
+																	pDiplo->setAIContact(true);
+																	pDiplo->setOurOfferList(theirList);
+																	pDiplo->setTheirOfferList(ourList);
+																	//If using RevDCM, use AI_beginDiplomacy, otherwise, use gDLL->beginDiplomacy()
+																	gDLL->beginDiplomacy(pDiplo, (PlayerTypes)iI);
+																	//AI_beginDiplomacy(pDiplo, (PlayerTypes)iI);
+																	abContacted[GET_PLAYER((PlayerTypes)iI).getTeam()] = true;
 																}
-																else
-																{
-																	GC.getGameINLINE().implementDeal(getID(), ((PlayerTypes)iI), &ourList, &theirList);
-																}
+															}
+															else
+															{
+																GC.getGameINLINE().implementDeal(getID(), ((PlayerTypes)iI), &ourList, &theirList);
 															}
 														}
 													}
-												//}
+												}
+											}
+											else
+											{
+												CvUnit* pSlave = NULL;
+												for (CvUnit* pLoopUnit = firstUnit(&iLoop); pLoopUnit != NULL; pLoopUnit = nextUnit(&iLoop))
+												{
+													if (pLoopUnit->canTradeUnit((PlayerTypes)iI))
+													{
+														setTradeItem(&item, TRADE_SLAVE, pLoopUnit->getID());
+														//if we can trade the slave to them
+														if (canTradeItem((PlayerTypes)iI, item, true))
+														{
+															pSlave = pLoopUnit;
+															break;
+														}
+													}
+												}
+
+												if (pSlave != NULL)
+												{
+													iOurValue = AI_slaveTradeVal(pSlave);
+													iGold = GET_PLAYER((PlayerTypes)iI).AI_maxGoldTrade(getID());
+													if (iGold >= iOurValue && iOurValue > 0)
+													{
+														setTradeItem(&item, TRADE_GOLD, iOurValue);
+														//if they can trade the gold to us
+														if (GET_PLAYER((PlayerTypes)iI).canTradeItem(getID(), item, true))
+														{
+															ourList.clear();
+															theirList.clear();
+
+															setTradeItem(&item, TRADE_SLAVE, pSlave->getID());
+															ourList.insertAtEnd(item);
+
+															setTradeItem(&item, TRADE_GOLD, iOurValue);
+															theirList.insertAtEnd(item);
+
+															if (GET_PLAYER((PlayerTypes)iI).isHuman())
+															{
+																if (!(abContacted[GET_PLAYER((PlayerTypes)iI).getTeam()]))
+																{
+																	AI_changeContactTimer(((PlayerTypes)iI), CONTACT_TRADE_SLAVE, GC.getLeaderHeadInfo(getPersonalityType()).getContactDelay(CONTACT_TRADE_SLAVE));
+																	pDiplo = new CvDiploParameters(getID());
+																	FAssertMsg(pDiplo != NULL, "pDiplo must be valid");
+																	pDiplo->setDiploComment((DiploCommentTypes)GC.getInfoTypeForString("AI_DIPLOCOMMENT_OFFER_DEAL"));
+																	pDiplo->setAIContact(true);
+																	pDiplo->setOurOfferList(theirList);
+																	pDiplo->setTheirOfferList(ourList);
+																	//If using RevDCM, use AI_beginDiplomacy, otherwise, use gDLL->beginDiplomacy()
+																	gDLL->beginDiplomacy(pDiplo, (PlayerTypes)iI);
+																	//AI_beginDiplomacy(pDiplo, (PlayerTypes)iI);
+																	abContacted[GET_PLAYER((PlayerTypes)iI).getTeam()] = true;
+																}
+															}
+															else
+															{
+																GC.getGameINLINE().implementDeal(getID(), ((PlayerTypes)iI), &ourList, &theirList);
+															}
+														}
+													}
+												}
 											}
 										}
 									}
@@ -19368,6 +19422,8 @@ int CvPlayerAI::AI_slaveTradeVal(CvUnit* pUnit) const
 	bool bOwnerCatholic = (GET_PLAYER(eOwner).getStateReligion() == CATHOLICISM && eOwner != GC.getGame().getActivePlayer());
 	bool bBuyerCatholic = GET_PLAYER(getID()).getStateReligion() == CATHOLICISM;
 
+	int iRequiredSlaves = countRequiredSlaves();
+
 	if (getCivilizationType() != GC.getGame().getActiveCivilizationType())
 	{
 		if (getCivilizationType() == MALI || getCivilizationType() == CONGO || getCivilizationType() == ETHIOPIA)
@@ -19375,7 +19431,7 @@ int CvPlayerAI::AI_slaveTradeVal(CvUnit* pUnit) const
 			return 0;
 		}
 
-		if (countRequiredSlaves() <= 0)
+		if (iRequiredSlaves <= 0)
 		{
 			return 0;
 		}
@@ -19384,9 +19440,13 @@ int CvPlayerAI::AI_slaveTradeVal(CvUnit* pUnit) const
 	if (getID() == GC.getGame().getActivePlayer()) iModifier += 1;
 	if (bOwnerEuropean || bBuyerEuropean) iModifier += 1;
 	if (!bOwnerExploration && !bBuyerExploration) iModifier -= 1;
-	if (bOwnerCatholic || bBuyerCatholic) iModifier += 1;
 
-	return std::max(1, iModifier) * iValue;
+	iValue = std::max(1, iModifier) * iValue;
+
+	iValue *= 100 + range(0, iRequiredSlaves - 1, 5) * 20;
+	iValue /= 100;
+
+	return iValue;
 }
 // edead: end
 

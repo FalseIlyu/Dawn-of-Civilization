@@ -33,6 +33,7 @@
 #include "CyArgsList.h"
 #include "CvDLLPythonIFaceBase.h"
 #include "CvRhyes.h" //Rhye
+#include "CvEventReporter.h" // Leoreth
 
 // BUG - start
 #include "CvBugOptions.h"
@@ -4603,24 +4604,21 @@ void CvGameTextMgr::setPlotHelp(CvWStringBuffer& szString, CvPlot* pPlot)
 	    // end tile stability info text
 
 		// Leoreth: display UHV requirement info
-	    long result3 = -1;
-        CyArgsList argsList3;
-        argsList3.add(pPlot->getX());
-        argsList3.add(pPlot->getY());
-        argsList3.add(GC.getGameINLINE().getActivePlayer());
-        gDLL->getPythonIFace()->callFunction(PYScreensModule, "getUHVTileInfo", argsList3.makeFunctionArgs(), &result3);
-        int iUHVTileInfoKey = (int)result3;
+		CvWString victoryTooltip;
+		CyArgsList victoryTooltipArgs;
 
-		TCHAR displayText[1024];
+		victoryTooltipArgs.add(GC.getGameINLINE().getActivePlayer());
+		victoryTooltipArgs.add(pPlot->getX());
+		victoryTooltipArgs.add(pPlot->getY());
 
-		if (pPlot->getPlotType() == PLOT_LAND || pPlot->getPlotType() == PLOT_HILLS)
+		gDLL->getPythonIFace()->callFunction(PYScreensModule, "getVictoryTooltip", victoryTooltipArgs.makeFunctionArgs(), &victoryTooltip);
+
+		if (!pPlot->isWater() && !pPlot->isPeak())
 		{
-			if (iUHVTileInfoKey != -1)
+			if (!victoryTooltip.empty())
 			{
-				sprintf(displayText, "TXT_KEY_UHV_AREA_%d", iUHVTileInfoKey);
-
 				szString.append(CvWString::format(SETCOLR, TEXT_COLOR("COLOR_PLAYER_CYAN_TEXT")));
-				szString.append(gDLL->getText(displayText));
+				szString.append(victoryTooltip);
 				szString.append(CvWString::format(ENDCOLR));
 				szString.append(NEWLINE);
 			}
@@ -6385,15 +6383,16 @@ void CvGameTextMgr::parseCivInfos(CvWStringBuffer &szInfoText, CivilizationTypes
 		}
 		szInfoText.append(szTempString);
 
-		std::string szIdentifier = GC.getCivilizationInfo(eCivilization).getIdentifier();
+		// Leoreth: display UHV requirement info
+		CvWString historicalVictoryDescriptions;
+		CyArgsList historicalVictoryDescriptionsArgs;
 
-		szText = bDawnOfMan ? L"  " : L"";
-		szText += gDLL->getText("TXT_KEY_ICON_BULLET");
-		szText += gDLL->getText("TXT_KEY_UHV_" + szIdentifier + "1");
-		szText += NEWLINE L"  " + gDLL->getText("TXT_KEY_ICON_BULLET");
-		szText += gDLL->getText("TXT_KEY_UHV_" + szIdentifier + "2");
-		szText += NEWLINE L"  " + gDLL->getText("TXT_KEY_ICON_BULLET");
-		szText += gDLL->getText("TXT_KEY_UHV_" + szIdentifier + "3");
+		historicalVictoryDescriptionsArgs.add(eCivilization);
+
+		gDLL->getPythonIFace()->callFunction(PYScreensModule, "getHistoricalVictoryDescriptions", historicalVictoryDescriptionsArgs.makeFunctionArgs(), &historicalVictoryDescriptions);
+
+		szText = bDawnOfMan ? L" " : L"";
+		szText += historicalVictoryDescriptions;
 		szText += NEWLINE L"  ";
 
 		if (bDawnOfMan)
@@ -11798,7 +11797,7 @@ void CvGameTextMgr::buildBuildingRequiresString(CvWStringBuffer& szBuffer, Build
 				
 				if (NO_PLAYER != ePlayer)
 				{
-					szPaganReligionName = CvWString(GC.getCivilizationInfo(GET_PLAYER(ePlayer).getCivilizationType()).getPaganReligionName());
+					szPaganReligionName = CvWString(GC.getPaganReligionInfo((PaganReligionTypes)GC.getCivilizationInfo(GET_PLAYER(ePlayer).getCivilizationType()).getPaganReligion()).getDescription());
 				}
 
 				szBuffer.append(NEWLINE);
@@ -18239,7 +18238,7 @@ void CvGameTextMgr::setConvertHelp(CvWStringBuffer& szBuffer, PlayerTypes ePlaye
 	}
 	else if (GET_PLAYER(ePlayer).isStateReligion())
 	{
-		CvWString szPaganReligionName = GC.getCivilizationInfo(GET_PLAYER(ePlayer).getCivilizationType()).getPaganReligionName();
+		CvWString szPaganReligionName = GC.getPaganReligionInfo((PaganReligionTypes)GC.getCivilizationInfo(GET_PLAYER(ePlayer).getCivilizationType()).getPaganReligion()).getDescription();
 
 		if (!szPaganReligionName.length() == 0)
 		{
@@ -21090,6 +21089,8 @@ void CvGameTextMgr::assignFontIds(int iFirstSymbolCode, int iPadAmount)
 		gDLL->setSymbolID(i, iCurSymbolID);
 		++iCurSymbolID;
 	}
+
+	CvEventReporter::getInstance().fontsLoaded();
 }
 
 void CvGameTextMgr::getCityDataForAS(std::vector<CvWBData>& mapCityList, std::vector<CvWBData>& mapBuildingList, std::vector<CvWBData>& mapAutomateList)
@@ -21569,7 +21570,7 @@ bool CvGameTextMgr::setBuildingAdditionalBombardDefenseHelp(CvWStringBuffer &szB
 // Leoreth
 void CvGameTextMgr::parseMinorReligionHelp(CvWStringBuffer &szBuffer, CivilizationTypes eCivilization)
 {
-	const wchar* szPaganReligionName = GC.getCivilizationInfo(eCivilization).getPaganReligionName();
+	const wchar* szPaganReligionName = GC.getPaganReligionInfo((PaganReligionTypes)GC.getCivilizationInfo(eCivilization).getPaganReligion()).getDescription();
 
 	if (CvWString(szPaganReligionName).empty())
 	{		

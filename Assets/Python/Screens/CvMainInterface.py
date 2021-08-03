@@ -4654,8 +4654,6 @@ class CvMainInterface:
 					iCost = pHeadSelectedCity.getCultureCost(i)
 					if iCost >= iThreshold: break
 					lCultureCosts.append(iCost)
-					
-				print "Culture costs: " + str(lCultureCosts)
 				
 				if lCultureCosts:
 					self.pBarCultureBar.drawTickMarksList(screen, 0, iThreshold, 0, lCultureCosts, True)
@@ -5729,7 +5727,9 @@ class CvMainInterface:
 			city.changeHappinessTimer(turns(5))
 			city.setWeLoveTheKingDay(True)
 			if self.pPushedButtonUnit.isHuman(): data.iTeotlSacrifices += 1
-			self.pPushedButtonUnit.kill(false, city.getOwner())
+			self.pPushedButtonUnit.kill(False, city.getOwner())
+			
+			events.fireEvent("sacrificeHappiness", city.getOwner(), city)
 		
 		# Leoreth: start Byzantine UP
 		if inputClass.getNotifyCode() == 11 and inputClass.getData1() == 10001:
@@ -5799,8 +5799,8 @@ class CvMainInterface:
 # BUG - field of view slider - end
 
 	def getPaganReligionChar(self, iPlayer):
-		paganReligionName = gc.getCivilizationInfo(gc.getPlayer(iPlayer).getCivilizationType()).getPaganReligionName(0)
-		
-		if not paganReligionName: return ""
+		paganReligionName = infos.paganReligion(civ(iPlayer)).getDescription()
+		if not paganReligionName: 
+			return ""
 	
 		return u"<font=2>%c</font>" % FontUtil.getChar(paganReligionName.lower())

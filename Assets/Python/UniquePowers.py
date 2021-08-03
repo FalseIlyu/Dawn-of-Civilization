@@ -59,6 +59,8 @@ def vikingUP(winningUnit, losingUnit):
 			player(iWinner).changeGold(iGold)
 			message(iWinner, 'TXT_KEY_VIKING_NAVAL_UP', iGold, adjective(losingUnit), losingUnit.getName())
 			
+			events.fireEvent("combatGold", iWinner, winningUnit, iGold)
+			
 			if civ(iWinner) == iVikings:
 				data.iVikingGold += iGold
 			elif civ(iWinner) == iMoors:
@@ -115,6 +117,7 @@ def mayanPower(iTech, iTeam, iPlayer):
 			iFood = 20 / iNumCities
 			for city in cities.owner(iPlayer):
 				city.changeFood(iFood)
+			
 			message(iPlayer, 'TXT_KEY_MAYA_UP_EFFECT', infos.tech(iTech).getText(), iFood)
 
 

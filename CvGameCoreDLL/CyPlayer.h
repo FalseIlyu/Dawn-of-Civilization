@@ -555,6 +555,7 @@ public:
 	int getLastBirthTurn();
 	void setLastBirthTurn(int iNewValue);
 	bool isSlaveTrade(int ePlayer);
+	bool isHasBuilding(int eBuildingType);
 	bool isHasBuildingEffect(int eBuildingType);
 	void setStabilityParameter(int eParameter, int iNewValue);
 	int countRequiredSlaves();
@@ -599,6 +600,7 @@ public:
 	void setPeriod(int iPeriod);
 	int getPeriod();
 	int getDomainFreeExperience(int iDomainType);
+	void changeGoldPerTurnByPlayer(int iPlayer, int iChange);
 
 private:
 	CvPlayer* m_pPlayer;

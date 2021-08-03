@@ -118,7 +118,7 @@ def spreadTradingCompanyCulture(iOwner, iPlayer, city, bConquest, bTrade):
 @handler("cityAcquiredAndKept")
 def spreadCultureOnConquest(iPlayer, city):
 	for plot in plots.surrounding(city):
-		if location(plot) == location(city):
+		if at(plot, city):
 			convertTemporaryCulture(plot, iPlayer, 25, False)
 		elif plot.getOwner() == city.getPreviousOwner():
 			convertTemporaryCulture(plot, iPlayer, 50, True)
@@ -174,20 +174,20 @@ def captureSlaves(winningUnit, losingUnit):
 		return
 
 	if civ(winningUnit) == iAztecs:
-		captureUnit(losingUnit, winningUnit, iAztecSlave, 35)
+		captureUnit(losingUnit, winningUnit, iAztecSlave, 50)
 		return
 	
 	if civ(losingUnit) == iNative and winningUnit.getUnitType() == iBandeirante and player(winningUnit).canUseSlaves():
 		captureUnit(losingUnit, winningUnit, iSlave, 100)
 		return
 	
-	if players.major().none(lambda p: player(p).canDoCivics(iColonialism)):
+	if players.major().alive().none(lambda p: team(p).isHasTech(iCompass)):
 		return
 		
 	if civ(losingUnit) == iNative:
 		if civ(winningUnit) not in lBioNewWorld or any(data.dFirstContactConquerors.values()):
 			if player(winningUnit).isSlavery() or player(winningUnit).isColonialSlavery():
-				captureUnit(losingUnit, winningUnit, iSlave, 35)
+				captureUnit(losingUnit, winningUnit, iSlave, 50)
 
 
 @handler("combatResult")
@@ -200,7 +200,10 @@ def mayanHolkanAbility(winningUnit, losingUnit):
 				iFood = scale(5)
 				city.changeFood(iFood)
 				data.iTeotlFood += iFood
+				
 				message(iWinner, 'TXT_KEY_MAYA_HOLKAN_EFFECT', adjective(losingUnit), losingUnit.getName(), iFood, city.getName())
+				
+				events.fireEvent("combatFood", iWinner, winningUnit, iFood)
 
 
 ### REVOLUTION ###
@@ -226,7 +229,7 @@ def validateSlaves(iPlayer):
 @handler("unitBuilt")
 def moveSlavesToNewWorld(city, unit):
 	if base_unit(unit) == iSlave and city.getRegionID() in lEurope + [rMaghreb, rAnatolia] and not city.isHuman():	
-		colony = cities.owner(iPlayer).regions(*(lNorthAmerica + lSouthAmerica + lSubSaharanAfrica)).random()
+		colony = cities.owner(iPlayer).regions(*(lAmerica + lSubSaharanAfrica)).random()
 		if colony:
 			move(unit, colony)
 

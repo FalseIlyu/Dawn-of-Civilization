@@ -286,6 +286,7 @@ def convertPlotCulture(tPlot, iPlayer, iPercent, bOwner):
 		plot.changeCulture(iLoopPlayer, -iConvertedCulture, True)
 		iTotalConvertedCulture += iConvertedCulture
 	
+	plot.resetCultureConversion()
 	plot.changeCulture(iPlayer, iTotalConvertedCulture, True)
 	
 	if bOwner:
@@ -660,7 +661,7 @@ def foundCapital(iPlayer, tPlot, sName, iSize, iCulture, lBuildings=[], lReligio
 
 # used: CvRFCEventHandler
 def moveSlaveToNewWorld(iPlayer, unit):
-	colony = cities.owner(iPlayer).where(lambda c: c.getRegionID() in lNorthAmerica + lSouthAmerica + lSubSaharanAfrica).random()
+	colony = cities.owner(iPlayer).where(lambda c: c.getRegionID() in lAmerica + lSubSaharanAfrica).random()
 	move(unit, colony)
 	
 # used: CvRFCEventHandler
@@ -1072,11 +1073,14 @@ def freeCargo(identifier, tile):
 	
 # used: CvRFCEventHandler
 def captureUnit(pLosingUnit, pWinningUnit, iUnit, iChance):
-	if pLosingUnit.isAnimal(): return
+	if pLosingUnit.isAnimal(): 
+		return
 	
-	if pLosingUnit.getDomainType() != DomainTypes.DOMAIN_LAND: return
+	if pLosingUnit.getDomainType() != DomainTypes.DOMAIN_LAND: 
+		return
 	
-	if infos.unit(pLosingUnit).getCombat() == 0: return
+	if infos.unit(pLosingUnit).getCombat() == 0: 
+		return
 	
 	iPlayer = pWinningUnit.getOwner()
 	
@@ -1085,9 +1089,7 @@ def captureUnit(pLosingUnit, pWinningUnit, iUnit, iChance):
 		message(pWinningUnit.getOwner(), 'TXT_KEY_UP_ENSLAVE_WIN', sound='SND_REVOLTEND', event=1, button=infos.unit(iUnit).getButton(), color=8, location=pWinningUnit)
 		message(pLosingUnit.getOwner(), 'TXT_KEY_UP_ENSLAVE_LOSE', sound='SND_REVOLTEND', event=1, button=infos.unit(iUnit).getButton(), color=7, location=pWinningUnit)
 		
-		if civ(iPlayer) == iAztecs:
-			if civ(pLosingUnit) not in dCivGroups[iCivGroupAmerica] and not is_minor(pLosingUnit):
-				data.iAztecSlaves += 1
+		events.fireEvent("enslave", iPlayer, pLosingUnit)
 	
 # unused
 # kept for scripted settler AI later
@@ -1152,39 +1154,6 @@ def ensureDefenders(iPlayer, tPlot, iNumDefenders):
 	presentUnits = units.at(tPlot).owner(iPlayer).where(lambda u: u.canFight())
 	if len(presentUnits) < iNumDefenders:
 		makeUnits(iPlayer, getBestDefender(iPlayer), tPlot, iNumDefenders - len(presentUnits))
-		
-def getGoalText(baseKey, bTitle = False):
-	fullKey = baseKey
-	iGameSpeed = game.getGameSpeedType()
-	
-	if bTitle:
-		fullKey += '_TITLE'
-	elif iGameSpeed < 2:
-		fullKey += '_' + infos.gameSpeed().getText().upper()
-		
-	return text_if_exists(fullKey, otherwise=baseKey)
-		
-# used: CvVictoryScreen, WBStoredDataScreen
-def getHistoricalGoalText(iPlayer, iGoal, bTitle = False):
-	iCiv = player(iPlayer).getCivilizationType()
-	
-	baseKey = "TXT_KEY_UHV_%s%d" % (infos.civ(iCiv).getIdentifier(), iGoal + 1)
-	
-	return getGoalText(baseKey, bTitle)
-	
-def getReligiousGoalText(iReligion, iGoal, bTitle = False):
-	iGameSpeed = game.getGameSpeedType()
-
-	if iReligion < iNumReligions:
-		religionKey = infos.religion(iReligion).getText()[:3].upper()
-	elif iReligion == iNumReligions:
-		religionKey = "POL"
-	elif iReligion == iNumReligions+1:
-		religionKey = "SEC"
-		
-	baseKey = "TXT_KEY_URV_%s%d" % (religionKey, iGoal + 1)
-	
-	return getGoalText(baseKey, bTitle)
 	
 # used: CvDawnOfMan
 def getDawnOfManText(iPlayer):
@@ -1549,7 +1518,7 @@ def convertSurroundingPlotCulture(iPlayer, plots):
 			convertPlotCulture(plot, iPlayer, 100, False)
 
 
-def paintPlots(plots):
+def paintPlots(plots, index=1000, color="COLOR_CYAN"):
 	engine.clearAreaBorderPlots(1000)
 	for plot in plots:
 		engine.fillAreaBorderPlotAlt(plot.getX(), plot.getY(), 1000, "COLOR_CYAN", 0.7)

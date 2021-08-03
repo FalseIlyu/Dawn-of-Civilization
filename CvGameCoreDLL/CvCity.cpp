@@ -13740,11 +13740,6 @@ void CvCity::setNumFreeBuilding(BuildingTypes eIndex, int iNewValue)
 	FAssertMsg(eIndex >= 0, "eIndex expected to be >= 0");
 	FAssertMsg(eIndex < GC.getNumBuildingInfos(), "eIndex expected to be < GC.getNumBuildingInfos()");
 
-	if (GC.getBuildingInfo(eIndex).isWater() && !isCoastal(GC.getMIN_WATER_SIZE_FOR_OCEAN()))
-	{
-		return;
-	}
-
 	if (getNumFreeBuilding(eIndex) != iNewValue)
 	{
 		iOldNumBuilding = getNumBuilding(eIndex);
@@ -15489,6 +15484,16 @@ int CvCity::getTurnsToSpread(ReligionTypes eReligion) const
 		iIncrement -= 10;
 
 		if (getReligionCount() == 0)
+		{
+			iIncrement -= 10;
+
+			if (bDistant) 
+			{
+				iIncrement -= 10;
+			}
+		}
+
+		if (GC.getMapINLINE().getArea(getArea())->countHasReligion(eReligion, getOwnerINLINE()) == 0)
 		{
 			iIncrement -= 10;
 		}
@@ -18297,7 +18302,7 @@ int CvCity::calculateCultureCost(CvPlot* pPlot, bool bOrdering) const
 	if (plot()->isRiver() && pPlot->isRiver()) iCost += GC.getDefineINT("CULTURE_COST_RIVER");
 
 	// Leoreth: Inca UP
-	if (getCivilizationType() == INCA && GET_PLAYER(getOwnerINLINE()).getPeriod() == NO_PERIOD && pPlot->isPeak()) iCost += GC.getDefineINT("CULTURE_COST_HILL") - GC.getDefineINT("CULTURE_COST_PEAK");
+	if (getCivilizationType() == INCA && (GET_PLAYER(getOwnerINLINE()).getPeriod() == NO_PERIOD || GET_PLAYER(getOwnerINLINE()).getPeriod() == PERIOD_LATE_INCA) && pPlot->isPeak()) iCost += GC.getDefineINT("CULTURE_COST_HILL") - GC.getDefineINT("CULTURE_COST_PEAK");
 
 	// Leoreth: Polynesian UP
 	if (getCivilizationType() == POLYNESIA && pPlot->getTerrainType() == TERRAIN_OCEAN) iCost -= GC.getTerrainInfo(TERRAIN_OCEAN).getCultureCostModifier();
@@ -19283,7 +19288,7 @@ int CvCity::getRebuildProduction() const
 	return iProduction;
 }
 
-void CvCity::completeAcquisition(int iCaptureGold)
+void CvCity::completeAcquisition(int iCaptureGold, bool bChooseProduction)
 {
 	int iOccupationTime = getOccupationTimer();
 	int iTotalBuildingDamage = getBuildingDamage();
@@ -19317,7 +19322,11 @@ void CvCity::completeAcquisition(int iCaptureGold)
 		if (getPopulation() > getTotalPopulationLoss())
 		{
 			changePopulation(-getTotalPopulationLoss());
-			chooseProduction();
+
+			if (bChooseProduction)
+			{
+				chooseProduction();
+			}
 		}
 		else
 		{

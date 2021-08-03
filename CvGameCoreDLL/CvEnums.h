@@ -1645,6 +1645,20 @@ enum SpecialUnitTypes	// Exposed to Python
 enum UnitCombatTypes	// Exposed to Python
 {
 	NO_UNITCOMBAT = -1,
+
+	UNITCOMBAT_RECON,
+	UNITCOMBAT_ARCHER,
+	UNITCOMBAT_HEAVY_CAVALRY,
+	UNITCOMBAT_LIGHT_CAVALRY,
+	UNITCOMBAT_MELEE,
+	UNITCOMBAT_SIEGE,
+	UNITCOMBAT_GUN,
+	UNITCOMBAT_ARMOR,
+	UNITCOMBAT_HELICOPTER,
+	UNITCOMBAT_NAVAL,
+	UNITCOMBAT_AIR,
+	UNITCOMBAT_SPY,
+	NUM_UNITCOMBATS
 };
 
 enum UnitAITypes			// Exposed to Python
@@ -2093,6 +2107,11 @@ enum ReligionTypes				// Exposed to Python
 	TAOISM,
 	ZOROASTRIANISM,
 	NUM_RELIGIONS,
+};
+
+enum PaganReligionTypes
+{
+	NO_PAGAN_RELIGION = -1,
 };
 
 enum CorporationTypes				// Exposed to Python
@@ -3434,6 +3453,8 @@ enum RegionSpreadTypes
 enum PeriodTypes
 {
 	NO_PERIOD = -1,
+
+	PERIOD_LATE_INCA = 18,
 };
 
 // Leoreth

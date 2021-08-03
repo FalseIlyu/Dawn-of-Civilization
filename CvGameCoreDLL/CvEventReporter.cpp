@@ -507,6 +507,24 @@ void CvEventReporter::peaceBrokered(PlayerTypes eBroker, PlayerTypes ePlayer1, P
 	m_kPythonEventMgr.reportPeaceBrokered(eBroker, ePlayer1, ePlayer2);
 }
 
+// Leoreth: XML loaded before menu
+void CvEventReporter::xmlLoaded()
+{
+	m_kPythonEventMgr.reportXMLLoaded();
+}
+
+// Leoreth: fonts loaded and font IDs assigned
+void CvEventReporter::fontsLoaded()
+{
+	m_kPythonEventMgr.reportFontsLoaded();
+}
+
+// Leoreth: civic changed
+void CvEventReporter::civicChanged(PlayerTypes ePlayer, CivicTypes eOldCivic, CivicTypes eNewCivic)
+{
+	m_kPythonEventMgr.reportCivicChanged(ePlayer, eOldCivic, eNewCivic);
+}
+
 void CvEventReporter::preSave()
 {
 	m_kPythonEventMgr.preSave();

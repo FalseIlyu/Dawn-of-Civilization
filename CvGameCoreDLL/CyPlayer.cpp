@@ -2488,6 +2488,11 @@ bool CyPlayer::isSlaveTrade(int ePlayer)
 	return m_pPlayer ? m_pPlayer->AI_slaveTrade((PlayerTypes)ePlayer) == NO_DENIAL : false;
 }
 
+bool CyPlayer::isHasBuilding(int eBuildingType)
+{
+	return m_pPlayer ? m_pPlayer->isHasBuilding((BuildingTypes)eBuildingType) : false;
+}
+
 bool CyPlayer::isHasBuildingEffect(int eBuildingType)
 {
 	return m_pPlayer ? m_pPlayer->isHasBuildingEffect((BuildingTypes)eBuildingType) : false;
@@ -2726,4 +2731,9 @@ int CyPlayer::getPeriod()
 int CyPlayer::getDomainFreeExperience(int iDomainType)
 {
 	return m_pPlayer ? m_pPlayer->getDomainFreeExperience((DomainTypes)iDomainType) : -1;
+}
+	
+void CyPlayer::changeGoldPerTurnByPlayer(int iPlayer, int iChange)
+{
+	if (m_pPlayer) m_pPlayer->changeGoldPerTurnByPlayer((PlayerTypes)iPlayer, iChange);
 }

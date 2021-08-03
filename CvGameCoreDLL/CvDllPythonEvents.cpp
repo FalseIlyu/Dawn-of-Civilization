@@ -1410,6 +1410,42 @@ void CvDllPythonEvents::reportPeaceBrokered(PlayerTypes eBroker, PlayerTypes ePl
 	}
 }
 
+// Leoreth: XML loaded before menu
+void CvDllPythonEvents::reportXMLLoaded()
+{
+	if (preEvent())
+	{
+		CyArgsList eventData;
+		eventData.add("xmlLoaded");
+		postEvent(eventData);
+	}
+}
+
+// Leoreth: Font files loaded and font IDs assigned
+void CvDllPythonEvents::reportFontsLoaded()
+{
+	if (preEvent())
+	{
+		CyArgsList eventData;
+		eventData.add("fontsLoaded");
+		postEvent(eventData);
+	}
+}
+
+// Leoreth: civic changed
+void CvDllPythonEvents::reportCivicChanged(PlayerTypes ePlayer, CivicTypes eOldCivic, CivicTypes eNewCivic)
+{
+	if (preEvent())
+	{
+		CyArgsList eventData;
+		eventData.add("civicChanged");
+		eventData.add((int)ePlayer);
+		eventData.add((int)eOldCivic);
+		eventData.add((int)eNewCivic);
+		postEvent(eventData);
+	}
+}
+
 void CvDllPythonEvents::reportGenericEvent(const char* szEventName, void *pyArgs)
 {
 	if (preEvent())
