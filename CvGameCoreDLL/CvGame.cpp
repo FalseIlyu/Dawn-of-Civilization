@@ -2288,7 +2288,7 @@ void CvGame::update()
 		if (getTurnSlice() == 0)
 		{
 			// edead: disable autosave during autoplay
-			if ((GC.getDefineINT("NO_AUTOSAVE_DURING_AUTOPLAY") == 0) || ((getGameTurn() > 0) && !(getGameTurn() < GET_PLAYER(getActivePlayer()).getInitialBirthTurn())))
+			if (GC.getDefineINT("NO_AUTOSAVE_DURING_AUTOPLAY") == 0 || (getGameTurn() > 0 && getAIAutoPlay() == 0))
 			{
 				gDLL->getEngineIFace()->AutoSave(true);
 			}
@@ -2332,16 +2332,6 @@ void CvGame::update()
 		{
 			gDLL->getInterfaceIFace()->setInAdvancedStart(true);
 			gDLL->getInterfaceIFace()->setWorldBuilder(true);
-		}
-		
-		// Leoreth
-		if (getGameTurn() == getScenarioStartTurn() && GET_PLAYER(getActivePlayer()).getInitialBirthTurn() > getScenarioStartTurn())
-		{
-			setAIAutoPlay(1);
-		}
-		else if (getGameTurn() <= GET_PLAYER(getActivePlayer()).getInitialBirthTurn())
-		{
-			setAIAutoPlayCatapult(1);
 		}
 	}
 }
@@ -3598,7 +3588,7 @@ void CvGame::reviveActivePlayer()
 		//Rhye - end
 
 		//GET_PLAYER(getActivePlayer()).initUnit(((UnitTypes)0), 0, 0); //Rhye
-		GET_PLAYER(getActivePlayer()).initUnit(((UnitTypes)GC.getInfoTypeForString("UNIT_CATAPULT")), 0, 0); //Rhye (catapult)
+		//GET_PLAYER(getActivePlayer()).initUnit(((UnitTypes)GC.getInfoTypeForString("UNIT_CATAPULT")), 0, 0); //Rhye (catapult)
 		//logMsg("init catapult in 00"); //Rhye
 	}
 }
@@ -4204,54 +4194,13 @@ void CvGame::setAIAutoPlay(int iNewValue)
 			GET_PLAYER(getActivePlayer()).killUnits();
 			GET_PLAYER(getActivePlayer()).killCities();
 		}
-	}
-}
 
-//Rhye - start
-void CvGame::setAIAutoPlayCatapult(int iNewValue)
-{
-	int iOldValue;
-
-	iOldValue = getAIAutoPlay();
-
-	if (iOldValue != iNewValue)
-	{
-		m_iAIAutoPlay = std::max(0, iNewValue);
-
-		if ((iOldValue == 0) && (getAIAutoPlay() > 0))
+		if (getAIAutoPlay() == 0)
 		{
-			CvPlot* pPlot = GC.getMapINLINE().plotINLINE(0, 0);
-			if (pPlot->isUnit()) {
-				GC.getMapINLINE().plotINLINE(0, 0)->getUnitByIndex(0)->kill(false);
-				for (int iI = 0; iI < MAX_PLAYERS; iI++)
-				{
-					if (GET_PLAYER((PlayerTypes)iI).isHuman())
-					{
-						GC.getMapINLINE().plotINLINE(0, 0)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(0, 1)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(1, 0)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(1, 1)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(123, 0)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(123, 1)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(2, 0)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(2, 1)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(2, 2)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(1, 2)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(0, 2)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(123, 2)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(122, 2)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(122, 1)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-						GC.getMapINLINE().plotINLINE(122, 0)->setRevealed(GET_PLAYER((PlayerTypes)iI).getTeam(), false, false, NO_TEAM, true);
-					}
-				}
-			}
-			else {
-				logMsg("NO UNIT IN 0,0!!!"); //Rhye
-			}
+			CvEventReporter::getInstance().autoplayEnded();
 		}
 	}
 }
-//Rhye - end
 
 
 void CvGame::changeAIAutoPlay(int iChange)
@@ -6288,7 +6237,7 @@ void CvGame::doTurn()
 	stopProfilingDLL();
 
 	// edead: disable autosave during autoplay
-	if ((GC.getDefineINT("NO_AUTOSAVE_DURING_AUTOPLAY") == 0) || ((getGameTurn() > 0) && !(getGameTurn() < GET_PLAYER(getActivePlayer()).getInitialBirthTurn())))
+	if (GC.getDefineINT("NO_AUTOSAVE_DURING_AUTOPLAY") == 0 || (getGameTurn() > 0 && getAIAutoPlay() == 0))
 	{
 		gDLL->getEngineIFace()->AutoSave();
 	}
@@ -10554,9 +10503,9 @@ void CvGame::changeYResolution(int iChange)
 	setYResolution(getYResolution() + iChange);
 }
 
-void CvGame::autosave()
+void CvGame::autosave(bool bInitial)
 {
-	gDLL->getEngineIFace()->AutoSave();
+	gDLL->getEngineIFace()->AutoSave(bInitial);
 }
 
 bool CvGame::isPlayerAutoplay(PlayerTypes ePlayer)

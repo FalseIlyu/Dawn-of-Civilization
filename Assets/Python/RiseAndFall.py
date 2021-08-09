@@ -16,6 +16,7 @@ import Modifiers
 import CvEspionageAdvisor
 import BugCore
 import Periods as periods
+import CvScreensInterface
 from Events import events, handler, popup_handler
 
 from Locations import *
@@ -45,6 +46,23 @@ def setup():
 		unit = units.at(plots.capital(iEgypt)).type(iSettler).one()
 		if unit:
 			interface.selectUnit(unit, True, False, False)
+			
+@handler("GameStart")
+def startAutoplay():
+	#CvScreensInterface.dawnOfMan.interfaceScreen()
+	#CvDawnOfMan.CvDawnOfMan(DAWN_OF_MAN).interfaceScreen()
+
+	iBirthTurn = year(dSpawn[active()])
+	iScenarioStartTurn = scenarioStartTurn()
+
+	iAutoplayTurns = iBirthTurn - iScenarioStartTurn
+	if iAutoplayTurns > 0:
+		game.setAIAutoPlay(iAutoplayTurns)
+
+@handler("BeginGameTurn")
+def showDawnOfMan(iGameTurn):
+	if iGameTurn == scenarioStartTurn() and game.getAIAutoPlay() > 0 and data.iBeforeObserverSlot == -1:
+		CvScreensInterface.dawnOfMan.interfaceScreen()
 
 @handler("combatResult")
 def restoreDefeatedUnitDuringSpawn(winningUnit, losingUnit):
@@ -61,7 +79,7 @@ def restoreDefeatedUnitDuringSpawn(winningUnit, losingUnit):
 def checkInitBetrayal():
 	initBetrayal()
 
-# TODO: this is bad and need to be rewritten
+# TODO: this is bad and needs to be rewritten
 def initBetrayal():
 	if data.iBetrayalTurns > 0:
 		iFlipPlayer = data.iFlipNewPlayer
@@ -181,6 +199,11 @@ def preparePlayerCapital(iGameTurn, iCurrentPlayer):
 	for plot in plots.surrounding(tCapital, radius=15).without(tCapital).land(): # must include the distance from Sogut to the Caspius
 		for unit in units.at(plot).owner(iPlayer):
 			move(unit, tCapital)
+
+@handler("birth")
+def initialSave(iPlayer):
+	if active() == iPlayer:
+		game.initialSave()
 			
 @handler("birth")
 def germanSpawn(iPlayer):
@@ -271,7 +294,7 @@ new_civ_switch = popup.text("TXT_KEY_INTERFACE_NEW_CIV_SWITCH") \
 					  .build()
 
 def startNewCivSwitchEvent(iPlayer):
-	if MainOpt.isSwitchPopup():
+	if MainOpt.isSwitchPopup() and data.iBeforeObserverSlot == -1:
 		new_civ_switch.text(adjective(iPlayer)).cancel().handleNewCiv().launch(iPlayer)
 		
 ### Utility methods ###
@@ -661,6 +684,9 @@ class RiseAndFall:
 	def initBirth(self, iBirthYear, iPlayer): # iBirthYear is really year now, so no conversion prior to function call - edead
 		iBirthYear = year(iBirthYear) # converted to turns here - edead
 		iCiv = civ(iPlayer)
+		
+		if active() == iPlayer and data.iBeforeObserverSlot != -1:
+			return
 		
 		if iCiv in lSecondaryCivs:
 			if not player(iPlayer).isHuman() and not data.isCivEnabled(iCiv):

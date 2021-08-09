@@ -251,7 +251,6 @@ public:
 
 	int getAIAutoPlay();																				// Exposed to Python
 	DllExport void setAIAutoPlay(int iNewValue);																// Exposed to Python
-	void setAIAutoPlayCatapult(int iNewValue); //Rhye
 	void changeAIAutoPlay(int iChange);
 
 	DllExport unsigned int getInitialTime();
@@ -574,7 +573,7 @@ public:
 	// Leoreth
 	bool isNeighbors(PlayerTypes ePlayer1, PlayerTypes ePlayer2) const;
 	TeamTypes determineWinner(TeamTypes eTeam1, TeamTypes eTeam2) const;
-	void autosave();
+	void autosave(bool bInitial = false);
 	bool isPlayerAutoplay(PlayerTypes ePlayer = NO_PLAYER);
 	void setCityScreenOwner(PlayerTypes ePlayer);
 	void resetCityScreenOwner();

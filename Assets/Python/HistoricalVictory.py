@@ -18,9 +18,9 @@ lSouthAsianCivs = [iIndia, iTamils, iIndonesia, iKhmer, iMughals, iThailand]
 
 dGoals = {
 	iEgypt: (
-		PlayerCulture(500).by(-850),
+		PlayerCulture(500).at(-850),
 		Wonders(iPyramids, iGreatLibrary, iGreatLighthouse).by(-100),
-		PlayerCulture(5000).by(170),
+		PlayerCulture(5000).at(170),
 	),
 	iBabylonia: (
 		FirstDiscovered(iConstruction, iArithmetics, iWriting, iCalendar, iContract),
@@ -150,7 +150,7 @@ dGoals = {
 		EraFirstDiscovered((iGlobal, 8), (iDigital, 8)),
 	),
 	iVikings: (
-		Any(Control(*list(plots.core(iCiv) for iCiv in dCivGroups[iCivGroupEurope] if dSpawn[iCiv] <= 1050))).named("ANY_EUROPEAN_CORE").at(1050),
+		Any(Control(*list(plots.core(iCiv) for iCiv in dCivGroups[iCivGroupEurope] if iCiv != iVikings and dSpawn[iCiv] <= 1050))).named("ANY_EUROPEAN_CORE").at(1050),
 		FirstSettle(plots.regions(*lAmerica).named("AMERICA")).allowed(dCivGroups[iCivGroupAmerica]).by(1100),
 		RaidGold(3000).by(1500),
 	),

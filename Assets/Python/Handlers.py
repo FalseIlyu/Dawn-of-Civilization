@@ -10,6 +10,7 @@ import Modifiers
 import AIParameters
 
 import Scenarios
+import ScreensHandler
 
 import AIWars
 import Barbs
@@ -27,7 +28,6 @@ import Religions
 import Resources
 import RiseAndFall
 import Rules
-import ScreensHandler
 import Shortcuts
 import Stability
 import UniquePowers
