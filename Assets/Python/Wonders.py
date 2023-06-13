@@ -63,8 +63,16 @@ def gurEAmirEffect(city, iPlayer, iGold):
 		if player(iPlayer).isHasBuildingEffect(iGurEAmir):
 			wonderCity = cities.owner(iPlayer).building(iGurEAmir).one()
 			if wonderCity:
-				message(iPlayer, 'TXT_KEY_BUILDING_GUR_E_AMIR_EFFECT', iGold, city.getName(), wonderCity.getName())
-				wonderCity.changeCulture(iPlayer, iGold, True)
+				iGreatPerson = find_max(range(iNumUnits), lambda iUnit: wonderCity.getGreatPeopleUnitProgress(iUnit)).result
+				if iGreatPerson:
+					iGreatPeoplePoints = iGold / 4
+				
+					wonderCity.changeGreatPeopleProgress(iGreatPeoplePoints)
+					wonderCity.changeGreatPeopleUnitProgress(iGreatPerson, iGreatPeoplePoints)
+				
+					interface.setDirty(InterfaceDirtyBits.MiscButtons_DIRTY_BIT, True)
+				
+					message(iPlayer, 'TXT_KEY_BUILDING_GUR_E_AMIR_EFFECT', city.getName(), iGreatPeoplePoints, wonderCity.getName())
 
 
 # Space Elevator effect: +1 commerce per satellite built
@@ -107,6 +115,27 @@ def empireStateBuildingEffect(city):
 	city.setBuildingCommerceChange(infos.building(iEmpireStateBuilding).getBuildingClassType(), CommerceTypes.COMMERCE_GOLD, city.getPopulation())
 
 
+# Burj Khalifa effect: +1 commerce per corporation in the world
+@handler("buildingBuilt")
+def burjKhalifaWhenBuilt(city, iBuilding):
+	if iBuilding == iBurjKhalifa:
+		city.changeBuildingYieldChange(infos.building(iBurjKhalifa).getBuildingClassType(), YieldTypes.YIELD_COMMERCE, sum(game.countCorporationLevels(iCorporation) for iCorporation in range(iNumCorporations)))
+
+
+@handler("corporationSpread")
+def burjKhalifaOnSpread(iCorporation):
+	city = getBuildingCity(iBurjKhalifa)
+	if city:
+		city.changeBuildingYieldChange(infos.building(iBurjKhalifa).getBuildingClassType(), YieldTypes.YIELD_COMMERCE, 1)
+
+
+@handler("corporationRemove")
+def burjKhalifaOnRemove(iCorporation):
+	city = getBuildingCity(iBurjKhalifa)
+	if city:
+		city.changeBuildingYieldChange(infos.building(iBurjKhalifa).getBuildingClassType(), YieldTypes.YIELD_COMMERCE, -1)
+
+
 @handler("buildingBuilt")
 def machuPicchuEffect(city, iBuilding):
 	if iBuilding == iMachuPicchu:
@@ -140,7 +169,7 @@ def nobelPrizeEffect(unit, iPlayer):
 		if infos.unit(unit).getLeaderExperience() == 0 and infos.unit(unit).getEspionagePoints() == 0:
 			if unit.getOwner() == city.getOwner() or player(unit).AI_getAttitude(city.getOwner()) >= AttitudeTypes.ATTITUDE_PLEASED:
 				iGreatPersonType = getDefaultGreatPerson(unit.getUnitType())
-				iGreatPeoplePoints = max(4, player(city).getGreatPeopleCreated())
+				iGreatPeoplePoints = max(8, 2 * player(city).getGreatPeopleCreated())
 				
 				city.changeGreatPeopleProgress(iGreatPeoplePoints)
 				city.changeGreatPeopleUnitProgress(iGreatPersonType, iGreatPeoplePoints)

@@ -58,7 +58,7 @@ public:
 
 	void AI_makeProductionDirty();
 
-	void AI_conquerCity(CvCity* pCity, PlayerTypes ePreviousOwner, PlayerTypes eHighestCulturePlayer, int iCaptureGold);
+	void AI_conquerCity(CvCity* pCity, CivilizationTypes ePreviousCiv, PlayerTypes eHighestCulturePlayer, int iCaptureGold);
 
 	bool AI_acceptUnit(CvUnit* pUnit) const;
 	bool AI_captureUnit(UnitTypes eUnit, CvPlot* pPlot) const;
@@ -203,8 +203,6 @@ public:
 	int AI_enemyTargetMissionAIs(MissionAITypes eMissionAI, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
 	int AI_enemyTargetMissionAIs(MissionAITypes* aeMissionAI, int iMissionAICount, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
 	int AI_wakePlotTargetMissionAIs(CvPlot* pPlot, MissionAITypes eMissionAI, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
-	
-	bool isUnstableCivic(CivicTypes eCivic) const;
 
 	CivicTypes AI_bestCivic(CivicOptionTypes eCivicOption) const;
 	int AI_civicValue(CivicTypes eCivic) const;
@@ -322,6 +320,7 @@ public:
 	bool AI_advancedStartPlaceExploreUnits(bool bLand);
 	void AI_advancedStartRevealRadius(CvPlot* pPlot, int iRadius);
 	bool AI_advancedStartPlaceCity(CvPlot* pPlot);
+	bool AI_advancedStartImproveCity(CvCity* pCity);
 	bool AI_advancedStartDoRoute(CvPlot* pFromPlot, CvPlot* pToPlot);
 	void AI_advancedStartRouteTerritory();
 	void AI_doAdvancedStart(bool bNoExit = false);

@@ -114,6 +114,11 @@ void CvEventReporter::firstContact(TeamTypes eTeamID1, TeamTypes eTeamID2)
 	m_kPythonEventMgr.reportFirstContact(eTeamID1, eTeamID2);
 }
 
+void CvEventReporter::restoredContact(TeamTypes eTeamID1, TeamTypes eTeamID2)
+{
+	m_kPythonEventMgr.reportRestoredContact(eTeamID1, eTeamID2);
+}
+
 void CvEventReporter::combatResult(CvUnit* pWinner, CvUnit* pLoser)
 {
 	m_kPythonEventMgr.reportCombatResult(pWinner, pLoser);
@@ -422,9 +427,9 @@ void CvEventReporter::endGoldenAge(PlayerTypes ePlayer)
 	m_kPythonEventMgr.reportEndGoldenAge(ePlayer);
 }
 
-void CvEventReporter::changeWar(bool bWar, TeamTypes eTeam, TeamTypes eOtherTeam)
+void CvEventReporter::changeWar(bool bWar, TeamTypes eTeam, TeamTypes eOtherTeam, bool bFromDefensivePact)
 {
-	m_kPythonEventMgr.reportChangeWar(bWar, eTeam, eOtherTeam);
+	m_kPythonEventMgr.reportChangeWar(bWar, eTeam, eOtherTeam, bFromDefensivePact);
 }
 
 void CvEventReporter::setPlayerAlive( PlayerTypes ePlayerID, bool bNewValue )
@@ -490,9 +495,9 @@ void CvEventReporter::playerSlaveTrade(PlayerTypes ePlayer, int iGold)
 }
 
 // Leoreth: release player
-void CvEventReporter::releasedPlayer(PlayerTypes ePlayer, PlayerTypes eReleasedPlayer)
+void CvEventReporter::releasedCivilization(PlayerTypes ePlayer, CivilizationTypes eReleasedCivilization)
 {
-	m_kPythonEventMgr.reportReleasedPlayer(ePlayer, eReleasedPlayer);
+	m_kPythonEventMgr.reportReleasedCivilization(ePlayer, eReleasedCivilization);
 }
 
 // Leoreth: blockade a city
@@ -529,6 +534,30 @@ void CvEventReporter::civicChanged(PlayerTypes ePlayer, CivicTypes eOldCivic, Ci
 void CvEventReporter::autoplayEnded()
 {
 	m_kPythonEventMgr.reportAutoplayEnded();
+}
+
+// Leoreth: player civilization assigned
+void CvEventReporter::playerCivAssigned(PlayerTypes ePlayer, CivilizationTypes eNewCivilization)
+{
+	m_kPythonEventMgr.reportPlayerCivAssigned(ePlayer, eNewCivilization);
+}
+
+// Leoreth: player destroyed
+void CvEventReporter::playerDestroyed(PlayerTypes ePlayer)
+{
+	m_kPythonEventMgr.reportPlayerDestroyed(ePlayer);
+}
+
+// Leoreth: player switched
+void CvEventReporter::playerSwitch(PlayerTypes eOldPlayer, PlayerTypes eNewPlayer)
+{
+	m_kPythonEventMgr.reportPlayerSwitch(eOldPlayer, eNewPlayer);
+}
+
+// Leoreth: tech traded
+void CvEventReporter::techTraded(PlayerTypes eFrom, PlayerTypes eTo, TechTypes eTech)
+{
+	m_kPythonEventMgr.reportTechTraded(eFrom, eTo, eTech);
 }
 
 void CvEventReporter::preSave()

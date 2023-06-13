@@ -1,19 +1,10 @@
-# Rhye's and Fall of Civilization - Barbarian units and cities
-
-import CvUtil
-import PyHelpers	# LOQ
-#import Popup
-#import cPickle as pickle
 from RFCUtils import *
 from Consts import *
 from StoredData import data
 
 from Events import handler
 from Core import *
-
-# globals
-gc = CyGlobalContext()
-PyPlayer = PyHelpers.PyPlayer	# LOQ
+from Locations import *
 
 # Spawning cities (Leoreth)
 # Year, coordinates, owner, name, population, unit type, unit number, religions, forced spawn
@@ -45,7 +36,7 @@ tMinorCities = (
 (800, tVienna, iIndependent, 'Vindobona', 1, iCrossbowman, 1),	# Wien
 (830, (59, 54), iIndependent, 'Hamburg', 2, iCrossbowman, 1),	# Hamburg
 (830, (60, 54), iIndependent, 'L&#252;beck', 2, iCrossbowman, 1),	# Lübeck
-(866, (101, 37), iBarbarian, 'Hanoi', 2, -1, -1),			# Hanoi
+(866, (101, 37), iBarbarian, 'Dai La', 2, -1, -1),			# Hanoi
 (880, (65, 48), iIndependent2, 'Buda', 3, iHorseArcher, 5),		# Budapest
 (900, (24, 26), iNative, 'Tucume', 1, iArcher, 2),			# Tucume
 (900, (25, 23), iNative, 'Chan Chan', 2, iArcher, 2),		# Chan Chan

@@ -1,9 +1,16 @@
+import CvUtil
+
 from CvPythonExtensions import *
 from Locations import *
 from RFCUtils import *
+
 from Events import events, handler, popup_handler
+from Slots import addPlayer, findSlot
 
 from CvScreenEnums import *
+
+
+### HANDLERS ###
 
 
 @handler("kbdEvent")
@@ -33,16 +40,14 @@ def observerModeShortcut(eventType, key):
 		
 		popup.launch(True, PopupStates.POPUPSTATE_IMMEDIATE)
 
+
 @popup_handler(4568)
 def handleStartObserverMode(iPlayer, netUserData, popupReturn):
-	try:
-		iDestinationYear = int(popupReturn.getEditBoxString(0))
-		iAutoplayTurns = year(iDestinationYear) - turn()
-		
-		if iAutoplayTurns > 0:
-			startObserverMode(iAutoplayTurns)
-	except Exception, e:
-		print e
+	iDestinationYear = int(popupReturn.getEditBoxString(0))
+	iAutoplayTurns = year(iDestinationYear) - turn()
+	
+	if iAutoplayTurns > 0:
+		startObserverMode(iAutoplayTurns)
 
 
 @handler("autoplayEnded")
@@ -60,12 +65,42 @@ def civSwitchShortcut(eventType, key):
 		
 		popup.createPullDown(0)
 		
-		for iPlayer in players.major().alive().without(active()):
+		for iPlayer in players.major().alive():
 			popup.addPullDownString(name(iPlayer), iPlayer, 0)
 		
 		popup.launch(True, PopupStates.POPUPSTATE_IMMEDIATE)
 
+
 @popup_handler(4569)
 def handleCivSwitch(iPlayer, netUserData, popupReturn):
+	iCurrentPlayer = active()
 	iNewPlayer = popupReturn.getSelectedPullDownValue(0)
-	game.setActivePlayer(iNewPlayer, False)
+
+	if iNewPlayer != iCurrentPlayer:
+		game.setActivePlayer(iNewPlayer, False)
+
+
+### FUNCTIONS ###
+
+
+def startObserverMode(iTurns):
+	data.iBeforeObserverSlot = active()
+	iObserverCiv = player(iHarappa).isAlive() and iPolynesia or iHarappa
+	iObserverSlot = slot(iObserverCiv)
+	
+	if iObserverSlot < 0:
+		iObserverSlot = findSlot(iObserverCiv)
+		addPlayer(iObserverSlot, iObserverCiv)
+	
+	makeUnit(iObserverSlot, iCatapult, (0, 0))
+	
+	game.setActivePlayer(iObserverSlot, False)
+	game.setAIAutoPlay(iTurns)
+	
+def endObserverMode():
+	if data.iBeforeObserverSlot != -1:
+		if player(data.iBeforeObserverSlot).isAlive():
+			game.setActivePlayer(data.iBeforeObserverSlot, False)
+			data.iBeforeObserverSlot = -1
+		else:
+			makeUnit(active(), iCatapult, (0, 0))

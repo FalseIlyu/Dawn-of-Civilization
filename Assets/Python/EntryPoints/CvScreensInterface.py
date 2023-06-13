@@ -60,17 +60,17 @@ from RFCUtils import canEverRespawn as canEverRespawnUtils
 from RFCUtils import toggleStabilityOverlay as toggleStabilityOverlayUtils
 from Stability import calculateAdministration, calculateSeparatism
 import CityNameManager as cnm
-import RiseAndFall as rnf
-import Victory as vic
 import Victories
 
+from Scenarios import getScenario
 from Locations import *
 from Core import *
 
 gc = CyGlobalContext()
 	
 def countAchievedGoals(argsList):
-	return vic.countAchievedGoals(argsList[0])
+	iPlayer = argsList[0]
+	return count(data.players[iPlayer].historicalGoals, lambda goal: goal.succeeded())
 	
 ## World Builder ## Platypedia
 import CvPlatyBuilderScreen
@@ -320,6 +320,7 @@ def createCivilopedia():
 								PEDIA_LEADERS			: pediaMainScreen,
 								PEDIA_CIVICS			: pediaMainScreen,
 								PEDIA_RELIGIONS			: pediaMainScreen,
+								PEDIA_PAGAN_RELIGIONS	: pediaMainScreen,
 								PEDIA_CORPORATIONS		: pediaMainScreen,
 								PEDIA_SPECIALISTS		: pediaMainScreen,
 								PEDIA_TECHS			: pediaMainScreen,
@@ -353,6 +354,7 @@ def createCivilopedia():
 							PEDIA_LEADERS			: pediaMainScreen,
 							PEDIA_CIVICS			: pediaMainScreen,
 							PEDIA_RELIGIONS			: pediaMainScreen,
+							PEDIA_PAGAN_RELIGIONS	: pediaMainScreen,
 							PEDIA_CORPORATIONS		: pediaMainScreen,
 							PEDIA_SPECIALISTS		: pediaMainScreen,
 							PEDIA_TECHS			: pediaMainScreen,
@@ -424,6 +426,11 @@ def pediaJumpToCivic(argsList):
 
 def pediaJumpToReligion(argsList):
 	pediaMainScreen.pediaJump(PEDIA_RELIGIONS, argsList[0], True, False)
+	
+	
+
+def pediaJumpToPaganReligion(argsList):
+	pediaMainScreen.pediaJump(PEDIA_PAGAN_RELIGIONS, argsList[0], True, False)
 
 
 
@@ -903,11 +910,10 @@ def isNeighbor(argsList):
 def getVictoryTooltip(argsList):
 	iPlayer, x, y = argsList
 	
-	historicalVictoryTooltip = [goal.area_name((x, y)) for goal in data.players[iPlayer].historicalGoals]
-	religiousVictoryTooltip = [goal.area_name((x, y)) for goal in data.players[iPlayer].religiousGoals]
+	historicalVictoryTooltip = data.players[iPlayer].historicalVictory.area_names((x, y))
+	religiousVictoryTooltip = data.players[iPlayer].religiousVictory.area_names((x, y))
 	
 	tooltips = unique(tooltip for tooltip in historicalVictoryTooltip + religiousVictoryTooltip if tooltip)
-	
 	return "\n".join(tooltips)
 
 # Leoreth
@@ -929,45 +935,29 @@ def getCityName(argsList):
 		return result
 		
 def canRespawn(argsList):
-	iPlayer = argsList[0]
+	iCiv = argsList[0]
 	
-	if canRespawnUtils(iPlayer): return 1
+	if canRespawnUtils(Civ(iCiv)): return 1
 	
 	return 0
 	
 def canEverRespawn(argsList):
-	iPlayer, iGameTurn = argsList
+	iCiv, iGameTurn = argsList
 	
-	if canEverRespawnUtils(iPlayer, iGameTurn): return 1
+	if canEverRespawnUtils(Civ(iCiv), iGameTurn): return 1
 	
 	return 0
 
 def toggleStabilityOverlay():
 	toggleStabilityOverlayUtils()
+
+def updateCustomMapOption(argsList):
+	iOptionID, iOption = argsList
+	if iOptionID == 0:
+		scenario = getScenario(iOption)
+		scenario.setupCivilizations()
+		scenario.setupLeaders()
 		
-def applyClaimCityEvent(argsList):
-	data.currentCongress.applyClaimCityEvent(argsList[0])
-	
-def applyVoteCityEvent(argsList):
-	data.currentCongress.applyVoteCityEvent(argsList[1], argsList[2], argsList[0])
-	
-def applyIntroductionEvent(argsList):
-	data.currentCongress.applyIntroductionEvent()
-	
-def applyRefusalEvent(argsList):
-	data.currentCongress.applyRefusalEvent(argsList[0], argsList[1], argsList[2], argsList[3])
-	
-def applyBriberyEvent(argsList):
-	data.currentCongress.applyBriberyEvent(argsList[0], argsList[1], argsList[2], argsList[3])
-	
-def applyBriberyResultEvent(argsList):
-	data.currentCongress.applyBriberyResultEvent()
-	
-### Rise And Fall
-
-def applyNewCivSwitchEvent(argsList):
-	rnf.applyNewCivSwitchEvent(argsList)
-
 
 #######################################################################################
 ## Handle Close Map

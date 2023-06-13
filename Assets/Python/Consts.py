@@ -3,12 +3,14 @@
 
 from CvPythonExtensions import *
 from DataStructures import *
-from Types import *
+from CoreTypes import *
 
 gc = CyGlobalContext()
 
 iWorldX = 124
 iWorldY = 68
+
+iNumPlayers = gc.getMAX_PLAYERS()
 
 # civilizations, not players
 iNumCivs = 57
@@ -21,8 +23,7 @@ iVikings, iZulu, iIndependent, iIndependent2, iNative, iMinor, iBarbarian) = tup
 
 iPhoenicia = iCarthage
 
-# slot order
-lCivOrder = [
+lBirthOrder = [
 	iEgypt,
 	iBabylonia,
 	iHarappa,
@@ -70,7 +71,10 @@ lCivOrder = [
 	iMexico,
 	iColombia,
 	iBrazil,
-	iCanada,
+	iCanada
+]
+
+lCivOrder = lBirthOrder + [
 	iIndependent,
 	iIndependent2,
 	iNative,
@@ -104,34 +108,6 @@ iTechGroupNativeAmerica : [iPolynesia, iMaya, iInca, iAztecs],
 }
 
 lBioNewWorld = [iMaya, iInca, iAztecs]
-
-
-#for Victory and the handler
-tAmericasTL = (3, 0)
-tAmericasBR = (43, 63)
-
-# Colombian UP
-tSouthCentralAmericaTL = (13, 3)
-tSouthCentralAmericaBR = (43, 39)
-
-# English colonists
-tCanadaTL = (10, 49)
-tCanadaBR = (37, 58)
-tAustraliaTL = (103, 5)
-tAustraliaBR = (123, 22)
-
-# new capital locations
-tVienna = (62, 49)
-tWarsaw = (65, 52)
-tStockholm = (63, 59)
-tIstanbul = (68, 45)
-tBeijing = (102, 47)
-tEsfahan = (81, 41)
-tHamburg = (59, 53)
-tMilan = (59, 47)
-tBaghdad = (77, 40)
-tMumbai = (88, 34)
-tMysore = (90, 31)
 
 #for messages
 iDuration = 14
@@ -297,6 +273,48 @@ lNeighbours = [
 	(iMexico, iColombia),
 ]
 
+lInfluences = [
+	(iEgypt, iEngland),
+	(iBabylonia, iRome),
+	(iBabylonia, iArabia),
+	(iIndia, iEngland),
+	(iPhoenicia, iByzantium),
+	(iPhoenicia, iTurks),
+	(iPhoenicia, iIran),
+	(iPersia, iArabia),
+	(iRome, iOttomans),
+	(iMaya, iSpain),
+	(iTamils, iEngland),
+	(iTamils, iNetherlands),
+	(iArabia, iBabylonia),
+	(iArabia, iGreece),
+	(iArabia, iPersia),
+	(iIndonesia, iJapan),
+	(iSpain, iArabia),
+	(iSpain, iOttomans),
+	(iKhmer, iJapan),
+	(iHolyRome, iOttomans),
+	(iInca, iSpain),
+	(iItaly, iOttomans),
+	(iAztecs, iSpain),
+	(iMughals, iEngland),
+	(iOttomans, iRome),
+	(iThailand, iJapan),
+	(iCongo, iPortugal),
+	(iNetherlands, iSpain),
+	(iAmerica, iEngland),
+	(iAmerica, iFrance),
+	(iAmerica, iNetherlands),
+	(iArgentina, iSpain),
+	(iMexico, iSpain),
+	(iMexico, iFrance),
+	(iColombia, iSpain),
+	(iBrazil, iPortugal),
+	(iBrazil, iCongo),
+	(iCanada, iFrance),
+	(iCanada, iEngland),
+]
+
 dBirth = CivDict({
 iEgypt : -3000,
 iBabylonia : -3000,
@@ -337,13 +355,18 @@ iMughals : 1206,
 iOttomans : 1280,
 iThailand : 1350,
 iCongo : 1390,
+iIran : 1501,
 iNetherlands : 1580,
 iGermany : 1700,
 iAmerica : 1776,
 iArgentina : 1810,
+iMexico : 1810,
+iColombia : 1814,
 iBrazil : 1822,
 iCanada : 1867,
 }, -3000)
+
+lBirthCivs = dBirth.keys()
 
 dFall = CivDict({
 iEgypt : -343,
@@ -377,79 +400,11 @@ iMughals : 1640,
 iCongo : 1800,
 }, 2020)
 
-dVictoryYears = CivDict({
-iEgypt : (-850, -100, 170),
-iBabylonia : (-1, -850, -700),
-iHarappa : (-1600, -1500, -800),
-iChina : (1000, -1, 1800),
-iGreece : (-1, -330, -250),
-iIndia : (-100, 700, 1200),
-iCarthage : (-300, -100, 200),
-iPolynesia : (800, 1000, 1200),
-iPersia : (140, 350, 350),
-iRome : (100, 320, -1),
-iMaya : (200, 900, -1),
-iTamils : (800, 1000, 1200),
-iEthiopia : (400, 1200, 1500),
-iKorea : (1200, -1, -1),
-iByzantium : (1000, 1200, 1450),
-iJapan : (1600, 1940, -1),
-iVikings : (1050, 1100, 1500),
-iTurks : (900, 1100, 1400),
-iArabia : (1300, 1300, -1),
-iTibet : (1000, 1400, 1700),
-iIndonesia : (1300, 1500, 1940),
-iMoors : (1200, 1300, 1650),
-iSpain : (-1, 1650, 1650),
-iFrance : (1700, 1800, 1900),
-iKhmer : (1200, 1450, 1450),
-iEngland : (1730, 1800, -1),
-iHolyRome : (1550, 1650, 1850),
-iRussia : (1920, -1, 1950),
-iMali : (1350, 1500, 1700),
-iPoland : (1400, -1, 1600),
-iPortugal : (1550, 1650, 1700),
-iInca : (1500, 1550, 1700),
-iItaly : (1500, 1600, 1930),
-iMongols : (1300, -1, 1500),
-iAztecs : (1520, 1650, -1),
-iMughals : (1500, 1660, 1750),
-iOttomans : (1550, 1700, 1800),
-iThailand : (1650, 1700, 1900),
-iCongo : (1650, 1800, -1),
-iIran : (1650, 1750, 1800),
-iNetherlands : (1745, 1745, 1775),
-iGermany : (1900, 1940, -1),
-iAmerica : (1900, 1950, 1990),
-iMexico : (1880, 1940, 1960),
-iArgentina : (1930, 1960, 2000),
-iColombia : (1870, 1920, 1950),
-iBrazil : (1880, -1, 1950),
-iCanada : (1920, 1950, 2000),
-})
-
-# Leoreth: date-triggered respawn for certain civs
-dRebirth = CivDict({
-iPersia : 1501,		# Iran
-iMaya : 1814,		# Colombia
-iAztecs : 1810,		# Mexico
-})
-
-dRebirthCiv = CivDict({
-iPersia : iIran,
-iMaya : iColombia,
-iAztecs : iMexico,
-})
-
-# Leoreth: if we do not care about the difference between birth and rebirth
-dSpawn = CivDict(dict(dBirth.items() + [(dRebirthCiv[iCiv], dRebirth[iCiv]) for iCiv in dRebirth]))
-
-# Leoreth: this excludes rebirth civs to only contain civs that actually hold a slot at the start of the game
-lSlotOrder = [iCiv for iCiv in lCivOrder if iCiv not in dRebirthCiv.values()]
-
 # Leoreth: determine neighbour lists from pairwise neighbours for easier lookup
-dNeighbours = CivDict(dict((iCiv, list(set([iLeft for iLeft, iRight in lNeighbours if iRight == iCiv] + [iRight for iLeft, iRight in lNeighbours if iLeft == iCiv]))) for iCiv in dSpawn), [])
+dNeighbours = dictFromEdges(lBirthCivs, lNeighbours)
 
+# Leoreth: determine influence lists from pairwise influences for easier lookup
+dInfluences = dictFromEdges(lBirthCivs, lInfluences)
 
 dResurrections = CivDict({
 iEgypt : [(900, 1300), (1800, 2020)],
@@ -571,56 +526,56 @@ iMexico : 1,
 iArgentina : 1,
 }, 0)
 
-dAIStopBirthThreshold = CivDict({
-iEgypt : 80,
-iBabylonia : 50,
-iHarappa : 50,
-iChina : 60,
-iGreece : 50,
-iIndia : 80,
-iCarthage : 80,
-iPolynesia : 80,
-iPersia : 70,
-iRome : 80,
-iMaya : 80,
-iTamils : 80,
-iEthiopia : 80,
-iKorea : 80,
-iByzantium : 80,
-iJapan : 80,
-iVikings : 80,
-iTurks : 50,
-iArabia : 80,
-iTibet : 80,
-iIndonesia : 80,
-iMoors : 80,
-iSpain : 80,
-iFrance : 80,
-iKhmer : 80,
-iEngland : 50,
-iHolyRome : 80,
-iRussia : 50,
-iMali : 70,
-iPoland : 40,
-iPortugal : 40,
-iInca : 70,
-iItaly : 60,
-iMongols : 70,
-iAztecs : 50,
-iMughals : 70,
-iOttomans : 70,
-iThailand : 80,
-iCongo : 80,
-iIran : 80,
-iNetherlands : 40,
-iGermany : 80,
-iAmerica : 50,
-iArgentina : 60,
-iMexico : 60,
-iColombia : 60,
-iBrazil : 60,
-iCanada : 60,
-}, 100)
+dWarOnFlipProbability = CivDict({
+iEgypt: 20,
+iBabylonia: 50,
+iHarappa: 50,
+iChina: 40,
+iGreece: 50,
+iIndia: 20,
+iPhoenicia: 20,
+iPolynesia: 20,
+iPersia: 30,
+iRome: 20,
+iMaya: 20,
+iTamils: 20,
+iEthiopia: 20,
+iKorea: 20,
+iByzantium: 20,
+iJapan: 20,
+iVikings: 20,
+iTurks: 50,
+iArabia: 20,
+iTibet: 20,
+iIndonesia: 20,
+iMoors: 20,
+iSpain: 20,
+iFrance: 20,
+iKhmer: 20,
+iEngland: 50,
+iHolyRome: 20,
+iRussia: 50,
+iMali: 30,
+iPoland: 60,
+iPortugal: 60,
+iInca: 30,
+iItaly: 40,
+iMongols: 30,
+iAztecs: 50,
+iMughals: 30,
+iOttomans: 30,
+iThailand: 20,
+iCongo: 20,
+iIran: 20,
+iNetherlands: 60,
+iGermany: 20,
+iAmerica: 50,
+iArgentina: 40,
+iMexico: 40,
+iColombia: 40,
+iBrazil: 40,
+iCanada: 40,
+}, 0)
 
 dResurrectionProbability = CivDict({
 iEgypt : 25,
@@ -752,9 +707,6 @@ tPersecutionPreference = (
 (iIslam, iCatholicism, iProtestantism, iOrthodoxy, iJudaism, iBuddhism, iHinduism, iTaoism, iConfucianism), # Zoroastrianism
 )
 
-lCatholicStart = [iSpain, iFrance, iEngland, iHolyRome, iPoland, iPortugal, iItaly, iNetherlands, iGermany, iAmerica, iArgentina, iBrazil, iCanada]
-lProtestantStart = [iNetherlands, iGermany, iAmerica]
-
 # pagan religions
 iNumPaganReligions = 19
 (iAnunnaki, iAsatru, iAtua, iBaalism, iBon, iDruidism, iInti, iMazdaism, iMugyo, iOlympianism, 
@@ -819,9 +771,7 @@ iICBM, iSatellite, iGreatProphet, iGreatArtist, iGreatScientist, iGreatMerchant,
 iGreatSpy, iFemaleGreatProphet, iFemaleGreatArtist, iFemaleGreatScientist, iFemaleGreatMerchant, iFemaleGreatEngineer, iFemaleGreatStatesman, iFemaleGreatGeneral, iFemaleGreatSpy, iSlave, 
 iAztecSlave) = range(iNumUnits)
 
-iMissionary = iJewishMissionary # generic
-
-lGreatPeopleUnits = [iGreatProphet, iGreatArtist, iGreatScientist, iGreatMerchant, iGreatEngineer, iGreatStatesman]
+lGreatPeopleUnits = [iGreatProphet, iGreatArtist, iGreatScientist, iGreatMerchant, iGreatEngineer, iGreatStatesman, iGreatGeneral, iGreatSpy]
 
 dFemaleGreatPeople = {
 iGreatProphet : iFemaleGreatProphet,
@@ -833,6 +783,11 @@ iGreatStatesman : iFemaleGreatStatesman,
 iGreatGeneral : iFemaleGreatGeneral,
 iGreatSpy : iFemaleGreatSpy,
 }
+
+iNumUnitRoles = 22
+(iBase, iDefend, iAttack, iCounter, iShock, iHarass, iCityAttack, iWorkerSea, iSettle, iSettleSea, 
+iAttackSea, iFerry, iEscort, iExplore, iShockCity, iSiege, iCitySiege, iExploreSea, iSkirmish, iLightEscort,
+iWork, iMissionary) = range(iNumUnitRoles)
 
 # initialise bonuses variables to bonuses IDs from WBS
 iNumBonuses = 41
@@ -905,6 +860,8 @@ iNumSpecialists = 19
 iSpecialistGreatProphet, iSpecialistGreatArtist, iSpecialistGreatScientist, iSpecialistGreatMerchant, iSpecialistGreatEngineer, iSpecialistGreatStatesman, iSpecialistGreatGeneral, iSpecialistGreatSpy, 
 iSpecialistResearchSatellite, iSpecialistCommercialSatellite, iSpecialistMilitarySatellite, 
 iSpecialistSlave) = range(iNumSpecialists)
+
+lGreatSpecialists = [iSpecialistGreatProphet, iSpecialistGreatArtist, iSpecialistGreatScientist, iSpecialistGreatMerchant, iSpecialistGreatEngineer, iSpecialistGreatStatesman, iSpecialistGreatGeneral, iSpecialistGreatSpy]
 
 #Stability Levels
 iNumStabilityLevels = 5
@@ -1003,38 +960,35 @@ iVictorySecularism = 11
 
 #leaders
 iNumLeaders = 125
-(iLeaderBarbarian, iNativeLeader, iIndependentLeader, iAlexanderTheGreat, iAsoka, iAugustus, iBismarck, iBoudica, iBrennus, iCatherine, 
-iCharlemagne, iChurchill, iCyrus, iDarius, iDeGaulle, iElizabeth, iFrederick, iGandhi, iGenghisKhan, iSargon, 
-iHammurabi, iHannibal, iCleopatra, iHuaynaCapac, iIsabella, iJoao, iJuliusCaesar, iJustinian, iKublaiKhan, iLincoln, 
-iLouis, iMansaMusa, iMao, iMehmed, iMontezuma, iNapoleon, iPacal, iPericles, iPeter, iQinShiHuang, 
-iRamesses, iRagnar, iRoosevelt, iSaladin, iSittingBull, iStalin, iSuleiman, iSuryavarman, iOdaNobunaga, iVictoria, 
-iWangKon, iWashington, iWillemVanOranje, iZaraYaqob, iKammu, iMeiji, iAkbar, iHiram, iMenelik, iGustav, 
-iMongkut, iPhilip, iBarbarossa, iCharles, iFrancis, iIvan, iAfonso, iAtaturk, iMaria, iHitler,
-iFranco, iAlexanderI, iCavour, iAbbas, iKhomeini, iTaizong, iHongwu, iDharmasetu, iHayamWuruk, iSuharto, 
-iShahuji, iNaresuan, iAlpArslan, iBaibars, iNasser, iAlfred, iTrudeau, iChandragupta, iTughluq, iBasil, 
-iRahman, iRajendra, iLobsangGyatso, iSobieski, iVatavelli, iMbemba, iHarun, iSongtsen, iCasimir, iYaqub, 
-iLorenzo, iSantaAnna, iJuarez, iCardenas, iPedro, iSanMartin, iPeron, iBolivar, iAhoeitu, iKrishnaDevaRaya, 
-iMussolini, iSejong, iBhutto, iPilsudski, iWalesa, iGerhardsen, iVargas, iMacDonald, iCastilla, iWilliam,
-iGeorge, iKhosrow, iBumin, iTamerlane, iEzana) = range(iNumLeaders)
+(iLeaderBarbarian, iNativeLeader, iIndependentLeader, iRamesses, iCleopatra, iBaibars, iNasser, iSargon, iHammurabi, iVatavelli,
+iQinShiHuang, iTaizong, iHongwu, iMao, iPericles, iAlexanderTheGreat, iGeorge, iAsoka, iChandragupta, iShivaji, 
+iGandhi, iHiram, iHannibal, iAhoeitu, iCyrus, iDarius, iKhosrow, iJuliusCaesar, iAugustus, iPacal,
+iRajendra, iKrishnaDevaRaya, iEzana, iZaraYaqob, iMenelik, iWangKon, iSejong, iJustinian, iBasil, iKammu,
+iOdaNobunaga, iMeiji, iRagnar, iGustav, iGerhardsen, iBumin, iAlpArslan, iTamerlane, iHarun, iSaladin,
+iSongtsen, iLobsangGyatso, iDharmasetu, iHayamWuruk, iSuharto, iRahman, iYaqub, iIsabella, iPhilip, iFranco,
+iCharlemagne, iLouis, iNapoleon, iDeGaulle, iSuryavarman, iAlfred, iElizabeth, iVictoria, iChurchill, iBarbarossa,
+iCharles, iFrancis, iIvan, iPeter, iCatherine, iAlexanderI, iStalin, iMansaMusa, iCasimir, iSobieski,
+iPilsudski, iWalesa, iAfonso, iJoao, iMaria, iHuaynaCapac, iCastilla, iLorenzo, iCavour, iMussolini,
+iGenghisKhan, iKublaiKhan, iMontezuma, iTughluq, iAkbar, iBhutto, iMehmed, iSuleiman, iAtaturk, iNaresuan,
+iMongkut, iMbemba, iAbbas, iKhomeini, iWillemVanOranje, iWilliam, iFrederick, iBismarck, iHitler, iWashington,
+iLincoln, iRoosevelt, iSanMartin, iPeron, iJuarez, iSantaAnna, iCardenas, iBolivar, iPedro, iVargas,
+iMacDonald, iTrudeau, iBoudica, iBrennus, iSittingBull) = range(iNumLeaders)
 
 dResurrectionLeaders = CivDict({
 	iChina : iHongwu,
-	iIndia : iShahuji,
+	iIndia : iShivaji,
 	iEgypt : iBaibars,
 })
 
-dRebirthLeaders = CivDict({
-	iColombia : iBolivar,
-	iIran : iAbbas,
-	iMexico : iJuarez,
-})
-
-iNumPeriods = 23
+iNumPeriods = 24
 (iPeriodMing, iPeriodMaratha, iPeriodModernGreece, iPeriodCarthage, iPeriodVijayanagara,
 iPeriodByzantineConstantinople, iPeriodSeljuks, iPeriodMeiji, iPeriodDenmark, iPeriodNorway, 
-iPeriodSweden, iPeriodSaudi, iPeriodVietnam, iPeriodMorocco, iPeriodSpain, 
-iPeriodAustria, iPeriodYuan, iPeriodPeru, iPeriodLateInca, iPeriodModernItaly, 
-iPeriodPakistan, iPeriodOttomanConstantinople, iPeriodModernGermany) = range(iNumPeriods)
+iPeriodSweden, iPeriodUzbeks, iPeriodSaudi, iPeriodVietnam, iPeriodMorocco, 
+iPeriodSpain, iPeriodAustria, iPeriodYuan, iPeriodPeru, iPeriodLateInca, 
+iPeriodModernItaly, iPeriodPakistan, iPeriodOttomanConstantinople, iPeriodModernGermany) = range(iNumPeriods)
+
+iNumImpacts = 5
+(iImpactMarginal, iImpactLimited, iImpactSignificant, iImpactCritical, iImpactPlayer) = range(iNumImpacts)
 
 dTradingCompanyPlots = CivDict({
 iVikings : [],

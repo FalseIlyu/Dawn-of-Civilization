@@ -19,19 +19,24 @@ from Core import *
 
 ### Event Handlers ###
 
-@handler("GameStart")
-def setup():
-	data.iCongressTurns = getCongressInterval()
-
 @handler("BeginActivePlayerTurn")
 def checkTurn(iPlayer, iGameTurn):
 	if isCongressEnabled():
-		if data.iCongressTurns > 0:
-			data.iCongressTurns -= 1
-	
-		if data.iCongressTurns == 0:
-			data.iCongressTurns = getCongressInterval()
+		if turn() == data.iCongressTurn:
 			Congress().start()
+			scheduleCongress()
+
+
+@handler("techAcquired")
+def onTechAcquired(iTech):
+	if iTech == iNationalism and game.countKnownTechNumTeams(iNationalism) == 1:
+		scheduleCongress()
+
+
+@handler("buildingBuilt")
+def onBuildingBuilt(city, iBuilding):
+	if iBuilding == iPalaceOfNations:
+		scheduleCongress()
 
 
 @handler("changeWar")
@@ -60,6 +65,12 @@ def getCongressInterval():
 		return turns(4)
 		
 	return turns(15)
+	
+def scheduleCongress():
+	if data.iCongressTurn <= turn():
+		data.iCongressTurn = turn() + getCongressInterval()
+	else:
+		data.iCongressTurn = min(data.iCongressTurn, turn() + getCongressInterval())
 
 def isCongressEnabled():
 	if data.bNoCongressOption:
@@ -92,7 +103,7 @@ def endGlobalWar(iAttacker, iDefender):
 	if not player(iAttacker).isAlive() or not player(iDefender).isAlive():
 		return
 		
-	if data.iCongressTurns == getCongressInterval():
+	if data.iCongressTurn == turn() + getCongressInterval():
 		return
 	
 	lAttackers = [iAttacker]
@@ -174,7 +185,7 @@ class Congress:
 		self.bribe_other_city = base_bribery.text("TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_CITY").selection(self.applyBribe, "TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_CITY").build()
 		self.bribe_other_plot = base_bribery.text("TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_COLONY").selection(self.applyBribe, "TXT_KEY_CONGRESS_BRIBE_OWN_CLAIM_COLONY").build()
 		self.bribe_own_city = base_bribery.text("TXT_KEY_CONGRESS_BRIBE_OWN_CITY").selection(self.applyBribe, "TXT_KEY_CONGRESS_BRIBE_OWN_CITY").build()
-		self.bribe_own_plot = base_bribery.text("TXT_KEY_CONGRESS_BRIBE_OWN_TERRITORY").selection(self.applyBribe, "TXT_KEY_CONGRESS_BRIBE_OWN_TERRITORY").build()
+		self.bribe_own_territory = base_bribery.text("TXT_KEY_CONGRESS_BRIBE_OWN_TERRITORY").selection(self.applyBribe, "TXT_KEY_CONGRESS_BRIBE_OWN_TERRITORY").build()
 		
 		self.bribery_result = popup.option(self.applyBriberyResult, "TXT_KEY_CONGRESS_OK", '').build()
 		
@@ -540,10 +551,14 @@ class Congress:
 			
 		# normal congresses during war time may be too small because all civilisations are tied up in global wars
 		if len(self.invites) < 3:
-			data.iCongressTurns /= 2
+			data.iCongressTurn = turn() + getCongressInterval() / 2
 			data.currentCongress = None
 			return
-			
+		
+		# if a war congress would be followed by a normal congress, delay it
+		if self.bPostWar and data.iCongressTurn <= turn() + 1:
+			data.iCongressTurn = turn() + getCongressInterval()
+		
 		# establish contact between all participants
 		for iThisPlayer in self.invites:
 			for iThatPlayer in self.invites:
@@ -614,7 +629,7 @@ class Congress:
 		for (x, y), (iClaimant, iVotes) in dResults.items():
 			plot = plot_(x, y)
 			
-			bCanRefuse = (plot.getOwner() == active() and active() not in self.dVotedFor[iClaimant] and not (self.bPostWar and active() in self.losers))
+			bCanRefuse = self.canRefuse(iClaimant, plot)
 			
 			if plot.isCity():
 				self.lAssignments.append((plot.getPlotCity().getName(), plot.getOwner(), iClaimant))
@@ -636,6 +651,27 @@ class Congress:
 		else:
 			# without human cities affected, finish the congress immediately
 			self.finishCongress()
+	
+	def canRefuse(self, iClaimant, plot):
+		if not self.isHumanOwned(plot):
+			return False
+		
+		if active() in self.dVotedFor[iClaimant]:
+			return False
+		
+		if self.bPostWar and active() in self.losers:
+			return False
+			
+		return True
+		
+	def isHumanOwned(self, plot):
+		if plot.getOwner() == active():
+			return True
+		
+		if plot.isOwned() and team(plot.getTeam()).isVassal(player().getTeam()):
+			return True
+		
+		return False
 					
 	def assignCity(self, iPlayer, iOwner, (x, y)):
 		assignedCity = city(x, y)
@@ -648,8 +684,9 @@ class Congress:
 		
 		completeCityFlip(assignedCity, iPlayer, iOwner, 80, False, False, True, bPermanentCultureChange=False)
 		
-		iNumDefenders = player(iPlayer).isHuman() and 2 or max(2, player(iPlayer).getCurrentEra()-1)
-		makeUnits(iPlayer, getBestDefender(iPlayer), (x, y), iNumDefenders)
+		bLimitedDefenders = player(iPlayer).isHuman() or isIsland(assignedCity)
+		iNumDefenders = bLimitedDefenders and 2 or max(2, player(iPlayer).getCurrentEra()-1)
+		createRoleUnit(iPlayer, (x, y), iDefend, iNumDefenders)
 		
 	def foundColony(self, iPlayer, (x, y)):
 		plot = plot_(x, y)
@@ -801,8 +838,8 @@ class Congress:
 			if tVoter.isAtWar(iOwner): iFavorOwner -= 10
 			
 			# neighbors
-			if not isNeighbor(iVoter, iClaimant): iFavorClaimant += 5
-			if not isNeighbor(iVoter, iOwner): iFavorOwner += 10
+			if not game.isNeighbors(iVoter, iClaimant): iFavorClaimant += 5
+			if not game.isNeighbors(iVoter, iOwner): iFavorOwner += 10
 			
 			# vassalage
 			if tVoter.isVassal(iClaimant): iFavorClaimant += 20
@@ -811,7 +848,7 @@ class Congress:
 			if team(iClaimant).isVassal(iVoter): iFavorClaimant += 10
 			if team(iOwner).isVassal(iVoter): iFavorOwner += 10
 			
-			if not plot.isCore(iOwner) or plot.isCore(iClaimant):
+			if not plot.isPlayerCore(iOwner) or plot.isPlayerCore(iClaimant):
 				# French UP
 				if civ(iClaimant) == iFrance: iFavorClaimant += 10
 				if civ(iOwner) == iFrance: iFavorOwner += 10
@@ -841,7 +878,7 @@ class Congress:
 					iClaimValidity -= 10
 				
 			# generic settler map bonus
-			iClaimantValue = plot.getSettlerValue(iClaimant)
+			iClaimantValue = plot.getPlayerSettlerValue(iClaimant)
 			if iClaimantValue >= 90:
 				iClaimValidity += max(1, iClaimantValue / 100)
 
@@ -849,7 +886,7 @@ class Congress:
 			if civ(iVoter) in dCivGroups[iCivGroupEurope]:
 				if civ(iClaimant) in dCivGroups[iCivGroupEurope]:
 					if not bOwner or civ(iOwner) not in dTechGroups[iTechGroupWestern]:
-						if plot.getSettlerValue(iVoter) < 90:
+						if plot.getPlayerSettlerValue(iVoter) < 90:
 							iClaimValidity += 10
 							
 			# vote to support settler maps for civs from your own group
@@ -857,8 +894,8 @@ class Congress:
 				bDifferentGroupClaimant = none(civ(iVoter) in lGroup and civ(iClaimant) in lGroup for lGroup in dCivGroups.values())
 				bDifferentGroupOwner = none(civ(iVoter) in lGroup and civ(iOwner) in lGroup for lGroup in dCivGroups.values())
 			
-				iClaimantValue = plot.getSettlerValue(iClaimant)
-				iOwnerValue = plot.getSettlerValue(iOwner)
+				iClaimantValue = plot.getPlayerSettlerValue(iClaimant)
+				iOwnerValue = plot.getPlayerSettlerValue(iOwner)
 				
 				if not bDifferentGroupClaimant and bDifferentGroupOwner and iClaimantValue >= 90: iClaimantValue *= 2
 				if not bDifferentGroupOwner and bDifferentGroupClaimant and iOwnerValue >= 90: iOwnerValue *= 2
@@ -868,8 +905,8 @@ class Congress:
 			
 		# own expansion targets
 		if not bOwnClaim:
-			iOwnSettlerValue = plot.getSettlerValue(iVoter)
-			iOwnWarTargetValue = plot.getWarValue(iVoter)
+			iOwnSettlerValue = plot.getPlayerSettlerValue(iVoter)
+			iOwnWarTargetValue = plot.getPlayerWarValue(iVoter)
 			
 			# if vote between two civs, favor the weaker one if we want to expand there later on
 			if bOwner:
@@ -892,7 +929,6 @@ class Congress:
 			if not bRecolonise:
 				# previous ownership
 				if city.isEverOwned(iClaimant): iClaimValidity += 5
-				#if city.getOriginalOwner() == iClaimant: iClaimValidity += 5
 			
 				# city culture, see plot culture
 				if city.getCulture(iClaimant) == 0: iClaimValidity -= 10
@@ -906,8 +942,8 @@ class Congress:
 			if city.isCapital(): iClaimValidity -= 10
 			
 			# core area
-			if plot.isCore(iClaimant): iClaimValidity += 10
-			if plot.isCore(iOwner): iClaimValidity -= 15
+			if plot.isPlayerCore(iClaimant): iClaimValidity += 10
+			if plot.isPlayerCore(iOwner): iClaimValidity -= 15
 			
 			# immediately reclaiming lost cities is only valid in post war congress
 			if not self.bPostWar:
@@ -1063,7 +1099,7 @@ class Congress:
 			
 			for city in cities.owner(iLoopPlayer):
 				plot = plot_(city)
-				iSettlerMapValue = plot.getSettlerValue(iPlayer)
+				iSettlerMapValue = plot.getPlayerSettlerValue(iPlayer)
 				iValue = 0
 				
 				bRecolonise = not self.bPostWar and city.getRegionID() in lAmerica and civ(iPlayer) in dCivGroups[iCivGroupEurope] and civ(city) in dCivGroups[iCivGroupAmerica] and civ(city) in dTechGroups[iTechGroupWestern]
@@ -1092,7 +1128,7 @@ class Congress:
 					iValue -= min(3, since(city.getGameTurnPlayerLost(iPlayer)) / turns(100))
 						
 				# own core
-				if plot.isCore(iPlayer):
+				if plot.isPlayerCore(iPlayer):
 					iValue += 5
 							
 				# colonies
@@ -1118,8 +1154,8 @@ class Congress:
 					
 				# after war: war targets
 				if self.bPostWar:
-					iValue += plot.getWarValue(iPlayer) / 2
-				elif iValue == 0 and plot.getWarValue(iPlayer) > 0:
+					iValue += plot.getPlayerWarValue(iPlayer) / 2
+				elif iValue == 0 and plot.getPlayerWarValue(iPlayer) > 0:
 					iValue += 1
 					
 				# AI America receives extra value for claims in the west
@@ -1140,7 +1176,7 @@ class Congress:
 		if civ(iPlayer) in dCivGroups[iCivGroupEurope] and not self.bPostWar:
 			for plot in plots.all().where(lambda p: not p.isCity() and not p.isPeak() and not p.isWater() and pPlayer.canFound(p.getX(), p.getY())).regions(rWestAfrica, rSouthAfrica, rEthiopia, rAustralia, rOceania):
 				if pPlayer.isHuman() and not plot.isRevealed(iPlayer, False): continue
-				iSettlerMapValue = plot.getSettlerValue(iPlayer)
+				iSettlerMapValue = plot.getPlayerSettlerValue(iPlayer)
 				if iSettlerMapValue >= 90 and cnm.getFoundName(iPlayer, plot):
 					iFoundValue = pPlayer.AI_foundValue(plot.getX(), plot.getY(), -1, False)
 					lPlots.append((plot.getX(), plot.getY(), max(1, min(5, iFoundValue / 2500 - 1))))
@@ -1174,10 +1210,10 @@ class Congress:
 			self.invites = self.invites.without(lAttackers)
 			self.invites = self.invites.without(lDefenders)
 			
-		self.invites = self.invites.alive()
+		self.invites = self.invites.alive().where(lambda p: player(p).getNumCities() > 0)
 		
 		# America receives an invite if there are still claims in the west
-		if player(iAmerica).isAlive() and slot(iAmerica) not in self.invites and not self.bPostWar:
+		if player(iAmerica).isAlive() and iAmerica not in self.invites and not self.bPostWar:
 			if cities.rectangle(tAmericanClaims).notowner(iAmerica):
 				if len(self.invites) == getNumInvitations():
 					self.invites = self.invites.limit(len(self.invites)-1)

@@ -1,20 +1,16 @@
 # coding: utf-8
 
-from CvPythonExtensions import *
-import CvUtil
-import PyHelpers
-from Consts import *
 from Civics import *
-from StoredData import data
 from RFCUtils import *
 from Areas import *
-import CityNameManager as cnm
-from Events import handler
-
 from Locations import *
 from Core import *
+
+from Events import handler
 from Core import name as short
 from Core import adjective as civAdjective
+
+import CityNameManager as cnm
 
 
 ### Constants ###
@@ -236,6 +232,7 @@ dSpecificVassalTitles = deepdict({
 })
 
 dMasterTitles = {
+	iEgypt : "TXT_KEY_CIV_EGYPTIAN_VASSAL",
 	iChina : "TXT_KEY_CIV_CHINESE_VASSAL",
 	iIndia : "TXT_KEY_CIV_INDIAN_VASSAL",
 	iPersia : "TXT_KEY_CIV_PERSIAN_VASSAL",
@@ -251,6 +248,7 @@ dMasterTitles = {
 	iFrance : "TXT_KEY_ADJECTIVE_TITLE",
 	iEngland : "TXT_KEY_CIV_ENGLISH_VASSAL",
 	iRussia : "TXT_KEY_CIV_RUSSIAN_VASSAL",
+	iPoland : "TXT_KEY_CIV_POLISH_VASSAL",
 	iNetherlands : "TXT_KEY_ADJECTIVE_TITLE",
 	iPortugal : "TXT_KEY_ADJECTIVE_TITLE",
 	iMongols : "TXT_KEY_CIV_MONGOL_VASSAL",
@@ -410,6 +408,10 @@ dForeignNames = deepdict({
 	iMongols : {
 		iTurks : "TXT_KEY_CIV_MONGOL_NAME_TURKS"
 	},
+	iOttomans : {
+		iPoland : "TXT_KEY_CIV_OTTOMAN_NAME_POLAND",
+		iGermany : "TXT_KEY_CIV_OTTOMAN_NAME_GERMANY",
+	},
 	iGermany : {
 		iMoors : "TXT_KEY_CIV_GERMAN_NAME_MOORS",
 	},
@@ -418,7 +420,7 @@ dForeignNames = deepdict({
 lRepublicOf = [iEgypt, iIndia, iChina, iPersia, iJapan, iEthiopia, iKorea, iVikings, iTurks, iTibet, iIndonesia, iKhmer, iHolyRome, iMali, iPoland, iMughals, iOttomans, iThailand, iIran]
 lRepublicAdj = [iBabylonia, iRome, iMoors, iSpain, iFrance, iPortugal, iInca, iItaly, iAztecs, iArgentina]
 
-lSocialistRepublicOf = [iMoors, iHolyRome, iBrazil, iVikings, iColombia]
+lSocialistRepublicOf = [iEgypt, iMoors, iHolyRome, iBrazil, iVikings, iColombia]
 lSocialistRepublicAdj = [iPersia, iTurks, iItaly, iAztecs, iIran, iArgentina]
 
 lPeoplesRepublicOf = [iIndia, iChina, iPolynesia, iJapan, iTibet, iIndonesia, iMali, iPoland, iMughals, iThailand, iCongo]
@@ -439,6 +441,7 @@ dEmpireThreshold = {
 	iPoland : 3,
 	iInca : 3,
 	iMongols : 8,
+	iMughals : 6,
 	iItaly : 4,
 	iIran : 4,
 	iGermany : 4,
@@ -461,6 +464,7 @@ dNameChanges = { # TODO: this should be covered by period
 	iMughals : "TXT_KEY_CIV_PAKISTAN_SHORT_DESC",
 	iVikings : "TXT_KEY_CIV_SWEDEN_SHORT_DESC",
 	iMoors : "TXT_KEY_CIV_MOROCCO_SHORT_DESC",
+	iTurks : "TXT_KEY_CIV_UZBEKS_SHORT_DESC",
 }
 
 dAdjectiveChanges = {
@@ -472,11 +476,16 @@ dAdjectiveChanges = {
 	iMughals : "TXT_KEY_CIV_PAKISTAN_ADJECTIVE",
 	iVikings : "TXT_KEY_CIV_SWEDEN_ADJECTIVE",
 	iMoors : "TXT_KEY_CIV_MOROCCO_ADJECTIVE",
+	iTurks : "TXT_KEY_CIV_UZBEKS_ADJECTIVE",
 }
 
 dStartingLeaders = [
 # 3000 BC
 {
+	iIndependent : iIndependentLeader,
+	iIndependent2 : iIndependentLeader,
+	iNative : iNativeLeader,
+	iCelts : iBrennus,
 	iEgypt : iRamesses,
 	iIndia : iAsoka,
 	iBabylonia : iSargon,
@@ -533,8 +542,7 @@ dStartingLeaders = [
 # 1700 AD
 {
 	iChina : iHongwu,
-	iIndia : iShahuji,
-	iIran : iAbbas,
+	iIndia : iShivaji,
 	iTamils : iKrishnaDevaRaya,
 	iKorea : iSejong,
 	iJapan : iOdaNobunaga,
@@ -550,7 +558,6 @@ dStartingLeaders = [
 	iPortugal : iJoao,
 	iMughals : iAkbar,
 	iOttomans : iSuleiman,
-	iGermany : iFrederick,
 }]
 
 ### Event handlers
@@ -560,34 +567,28 @@ def setup():
 	iScenario = scenario()
 	
 	if iScenario == i600AD:
-		data.players[slot(iChina)].iAnarchyTurns += 3
+		data.civs[iChina].iAnarchyTurns += 3
 		
 	elif iScenario == i1700AD:
-		data.players[slot(iEgypt)].iResurrections += 1
+		data.civs[iEgypt].iResurrections += 1
 		
-		for iCiv in [iVikings, iMoors]:
+		for iCiv in [iVikings]:
 			checkNameChange(slot(iCiv))
 			checkAdjectiveChange(slot(iCiv))
 	
-	for iPlayer in players.major():
+@handler("playerCivAssigned")
+def initName(iPlayer):
+	if not is_minor(iPlayer) and player(iPlayer).getNumCities() == 0:
 		setDesc(iPlayer, peoplesName(iPlayer))
-		
-		if player(iPlayer).getNumCities() > 0:
-			checkName(iPlayer)
-		
-		if (year(dBirth[iPlayer]) >= year() or player(iPlayer).getNumCities() > 0) and not player(iPlayer).isHuman():
-			setLeader(iPlayer, startingLeader(iPlayer))
-
-@handler("rebirth")
-def onRebirth(iPlayer):
-	onRespawn(iPlayer)
+		checkName(iPlayer)
+		checkLeader(iPlayer)
 
 @handler("resurrection")
 def onResurrection(iPlayer):
 	onRespawn(iPlayer)
 
 def onRespawn(iPlayer):
-	data.players[iPlayer].iResurrections += 1
+	data.civs[iPlayer].iResurrections += 1
 	
 	if civ(iPlayer) in lRespawnNameChanges:
 		checkNameChange(iPlayer)
@@ -605,7 +606,7 @@ def onVassalState(iMaster, iVassal):
 	if iVassalCiv in lVassalNameChanges:
 		if iVassalCiv == iMughals and iMasterCiv not in dCivGroups[iCivGroupEurope]: return
 	
-		data.players[iVassal].iResurrections += 1
+		data.civs[iVassal].iResurrections += 1
 		checkNameChange(iVassal)
 		checkAdjectiveChange(iVassal)
 		
@@ -617,7 +618,7 @@ def onPlayerChangeStateReligion(iPlayer, iReligion):
 		return
 
 	if civ(iPlayer) in lChristianityNameChanges and iReligion in lChristianity:
-		data.players[iPlayer].iResurrections += 1
+		data.civs[iPlayer].iResurrections += 1
 		checkNameChange(iPlayer)
 		checkAdjectiveChange(iPlayer)
 		
@@ -628,7 +629,7 @@ def onRevolution(iPlayer):
 	if is_minor(iPlayer):
 		return
 
-	data.players[iPlayer].iAnarchyTurns += 1
+	data.civs[iPlayer].iAnarchyTurns += 1
 	
 	if civ(iPlayer) == iMughals and isRepublic(iPlayer):
 		checkNameChange(iPlayer)
@@ -645,13 +646,15 @@ def onCityAcquired(iPreviousOwner, iNewOwner):
 
 @handler("cityRazed")
 def onCityRazed(city):
-	checkName(city.getPreviousOwner())
+	iPreviousOwner = slot(Civ(city.getPreviousCiv()))
+	if iPreviousOwner >= 0:
+		checkName(iPreviousOwner)
 
 @handler("cityBuilt")	
 def onCityBuilt(city):
 	checkName(city.getOwner())
 	
-@handler("periodChange")
+@handler("playerPeriodChange")
 def onPeriodChange(iPlayer, iPeriod):
 	iCiv = civ(iPlayer)
 	
@@ -670,6 +673,11 @@ def onPeriodChange(iPlayer, iPeriod):
 		elif iPeriod == iPeriodSweden:
 			setShort(iPlayer, text("TXT_KEY_CIV_SWEDEN_SHORT_DESC"))
 			setAdjective(iPlayer, text("TXT_KEY_CIV_SWEDEN_ADJECTIVE"))
+	
+	if iCiv == iTurks:
+		if iPeriod == iPeriodUzbeks:
+			checkNameChange(iPlayer)
+			checkAdjectiveChange(iPlayer)
 	
 	if iCiv == iMoors:
 		if iPeriod == iPeriodMorocco:
@@ -694,6 +702,12 @@ def onReligionFounded(_, iPlayer):
 		return
 
 	checkName(iPlayer)
+
+
+@handler("capitalMoved")
+def onCapitalMoved(city):
+	checkName(city.getOwner())
+
 
 @handler("BeginGameTurn")
 def checkTurn(iGameTurn):
@@ -731,6 +745,7 @@ def setAdjective(iPlayer, sAdj):
 	
 def setLeader(iPlayer, iLeader):
 	if not iLeader: return
+	if player(iPlayer).isHuman(): return
 	if player(iPlayer).getLeader() == iLeader: return
 	player(iPlayer).setLeader(iLeader)
 	
@@ -860,10 +875,12 @@ def vassalName(iPlayer, iMaster):
 	if iMasterCiv == iRome and player(iPlayer).getPeriod() == iPeriodCarthage:
 		return "TXT_KEY_CIV_ROMAN_NAME_CARTHAGE"
 		
-	if iCiv == iNetherlands: return short(iPlayer)
+	if iCiv == iNetherlands:
+		return short(iPlayer)
 
 	sSpecificName = dForeignNames[iMasterCiv].get(iCiv)
-	if sSpecificName: return sSpecificName
+	if sSpecificName:
+		return sSpecificName
 	
 	return None
 	
@@ -872,7 +889,7 @@ def republicName(iPlayer):
 
 	if iCiv in [iMoors, iEngland]: return None
 	
-	if iCiv == iInca and data.players[iPlayer].iResurrections > 0: return None
+	if iCiv == iInca and data.civs[iPlayer].iResurrections > 0: return None
 	
 	if iCiv == iNetherlands and isCommunist(iPlayer): return "TXT_KEY_CIV_NETHERLANDS_ARTICLE"
 	
@@ -899,9 +916,9 @@ def specificName(iPlayer):
 	bEmpire = isEmpire(iPlayer)
 	bCityStates = isCityStates(iPlayer)
 	bTheocracy = (civic.iReligion == iTheocracy)
-	bResurrected = data.players[iPlayer].iResurrections > 0
+	bResurrected = data.civs[iPlayer].iResurrections > 0
 	bCapitulated = isCapitulated(iPlayer)
-	iAnarchyTurns = data.players[iPlayer].iAnarchyTurns
+	iAnarchyTurns = data.civs[iPlayer].iAnarchyTurns
 	iEra = pPlayer.getCurrentEra()
 	iGameEra = game.getCurrentEra()
 	bWar = isAtWar(iPlayer)
@@ -935,7 +952,7 @@ def specificName(iPlayer):
 		return "TXT_KEY_CIV_POLYNESIA_TONGA"
 		
 	elif iCiv == iTamils:
-		if iEra >= iRenaissance:
+		if getColumn(iPlayer) >= 11 or scenario() == i1700AD:
 			return "TXT_KEY_CIV_TAMILS_MYSORE"
 			
 		if getColumn(iPlayer) >= 9:
@@ -1040,6 +1057,9 @@ def specificName(iPlayer):
 			
 		if isCurrentCapital(iPlayer, "Barcelona", "Valencia"):
 			return "TXT_KEY_CIV_SPAIN_ARAGON"
+		
+		if isCurrentCapital(iPlayer, "Oviedo"):
+			return "TXT_KEY_CIV_SPAIN_ASTURIAS"
 			
 		if not bSpain:
 			return "TXT_KEY_CIV_SPAIN_CASTILE"
@@ -1134,7 +1154,9 @@ def republicAdjective(iPlayer):
 		
 	if iCiv in [iMoors, iEngland]: return None
 	
-	if iCiv == iInca and data.players[iPlayer].iResurrections > 0: return None
+	if iCiv == iInca and data.civs[iPlayer].iResurrections > 0: return None
+	
+	if iCiv == iHolyRome and player(iPlayer).getPeriod() == -1: return "TXT_KEY_CIV_HOLY_ROME_GERMAN"
 		
 	return player(iPlayer).getCivilizationAdjective(0)
 	
@@ -1155,9 +1177,9 @@ def specificAdjective(iPlayer):
 	bEmpire = isEmpire(iPlayer)
 	bCityStates = isCityStates(iPlayer)
 	bTheocracy = (civic.iReligion == iTheocracy)
-	bResurrected = data.players[iPlayer].iResurrections > 0
+	bResurrected = data.civs[iPlayer].iResurrections > 0
 	bCapitulated = isCapitulated(iPlayer)
-	iAnarchyTurns = data.players[iPlayer].iAnarchyTurns
+	iAnarchyTurns = data.civs[iPlayer].iAnarchyTurns
 	iEra = pPlayer.getCurrentEra()
 	iGameEra = game.getCurrentEra()
 	bWar = isAtWar(iPlayer)
@@ -1176,7 +1198,7 @@ def specificAdjective(iPlayer):
 				return "TXT_KEY_CIV_EGYPT_AYYUBID"
 			
 	elif iCiv == iIndia:
-		if bMonarchy and not bCityStates:
+		if bMonarchy and not bCityStates and (iEra >= iMedieval or bEmpire):
 			if iEra >= iRenaissance:
 				return "TXT_KEY_CIV_INDIA_MARATHA"
 			
@@ -1361,6 +1383,9 @@ def specificAdjective(iPlayer):
 			
 		if isCurrentCapital(iPlayer, "Barcelona", "Valencia"):
 			return "TXT_KEY_CIV_SPAIN_ARAGONESE"
+		
+		if isCurrentCapital(iPlayer, "Oviedo"):
+			return "TXT_KEY_CIV_SPAIN_ASTURIAN"
 			
 		if not bSpain:
 			return "TXT_KEY_CIV_SPAIN_CASTILIAN"
@@ -1423,6 +1448,10 @@ def specificAdjective(iPlayer):
 				
 		if bMonarchy:
 			return "TXT_KEY_CIV_MONGOLIA_MONGOL"
+	
+	elif iCiv == iMughals:
+		if not tPlayer.isHasTech(iFirearms):
+			return "TXT_KEY_CIV_MUGHALS_GHORID"
 				
 	elif iCiv == iOttomans:
 		return "TXT_KEY_CIV_OTTOMANS_OTTOMAN"
@@ -1483,6 +1512,9 @@ def vassalTitle(iPlayer, iMaster):
 	if iMasterCiv == iEngland and iCiv == iMughals:
 		if not player(iIndia).isAlive():
 			return dSpecificVassalTitles[iEngland][iIndia]
+	
+	if iMasterCiv == iEgypt and player(iMasterCiv).getStateReligion() == iIslam:
+		return dMasterTitles[iArabia]
 
 	sSpecificTitle = dSpecificVassalTitles[iMasterCiv].get(iCiv)
 	if sSpecificTitle: return sSpecificTitle
@@ -1512,8 +1544,8 @@ def republicTitle(iPlayer):
 	iCiv = civ(iPlayer)
 	pPlayer = player(iPlayer)
 
-	if iCiv == iHolyRome:
-		return "TXT_KEY_REPUBLIC_ADJECTIVE"
+	if iCiv == iHolyRome and pPlayer.getPeriod() == -1:
+		return "TXT_KEY_CIV_HOLY_ROME_CONFEDERATION"
 	
 	if iCiv == iPoland:
 		if pPlayer.getCurrentEra() <= iIndustrial:
@@ -1565,9 +1597,9 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 	bEmpire = isEmpire(iPlayer)
 	bCityStates = isCityStates(iPlayer)
 	bTheocracy = (civic.iReligion == iTheocracy)
-	bResurrected = data.players[iPlayer].iResurrections > 0
+	bResurrected = data.civs[iPlayer].iResurrections > 0
 	bCapitulated = isCapitulated(iPlayer)
-	iAnarchyTurns = data.players[iPlayer].iAnarchyTurns
+	iAnarchyTurns = data.civs[iPlayer].iAnarchyTurns
 	iEra = pPlayer.getCurrentEra()
 	iGameEra = game.getCurrentEra()
 	bWar = isAtWar(iPlayer)
@@ -1583,11 +1615,17 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 			return "TXT_KEY_CIV_EGYPT_PTOLEMAIC"
 			
 		if bCityStates:
-			return "TXT_KEY_CITY_STATES_ADJECTIVE"
+			return "TXT_KEY_CIV_EGYPT_NOMES"
+		
+		if iReligion == iIslam:
+			return "TXT_KEY_SULTANATE_OF"
+		
+		if iReligion in [iOrthodoxy, iCatholicism, iProtestantism]:
+			return "TXT_KEY_CIV_EGYPT_COPTIC"
 				
 		if iEra == iAncient:
 			if iAnarchyTurns == 0: return "TXT_KEY_CIV_EGYPT_OLD_KINGDOM"
-			if iAnarchyTurns == turns(1): return "TXT_KEY_CIV_EGYPT_MIDDLE_KINGDOM"
+			if iAnarchyTurns <= turns(1): return "TXT_KEY_CIV_EGYPT_MIDDLE_KINGDOM"
 			return "TXT_KEY_CIV_EGYPT_NEW_KINGDOM"
 		
 		if iEra == iClassical:
@@ -1783,7 +1821,7 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 		if iEra >= iIndustrial:
 			return "TXT_KEY_KINGDOM_OF"
 			
-		if isCurrentCapital(iPlayer, "Hanoi"):
+		if isCurrentCapital(iPlayer, "Dai La"):
 			return "TXT_KEY_CIV_KHMER_DAI_VIET"
 			
 	elif iCiv == iIndonesia:
@@ -1844,6 +1882,9 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 				return "TXT_KEY_CIV_ENGLAND_UNITED_KINGDOM_OF"
 			
 	elif iCiv == iHolyRome:
+		if bCityStates and player(iPlayer).getPeriod() == -1:
+			return "TXT_KEY_CIV_HOLY_ROME_FREE_CITIES"
+	
 		if bEmpire:
 			return "TXT_KEY_EMPIRE_ADJECTIVE"
 			
@@ -1856,15 +1897,22 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 	elif iCiv == iRussia:
 		if bEmpire and iEra >= iRenaissance:
 			return "TXT_KEY_EMPIRE_ADJECTIVE"
+		
+		if iEra <= iMedieval:
+			if (civic.iGovernment == iRepublic and civic.iLegitimacy in [iVassalage, iCitizenship]) or (civic.iGovernment == iElective and civic.iLegitimacy == iCitizenship):
+				return "TXT_KEY_CIV_RUSSIA_MEDIEVAL_REPUBLIC"
 			
-		if bCityStates and iEra <= iMedieval:
-			if isCurrentCapital(iPlayer, "Kiev"):
-				return "TXT_KEY_CIV_RUSSIA_KIEVAN_RUS"
+			if civic.iGovernment == iElective:
+				if isCurrentCapital(iPlayer, "Kiev"):
+					return "TXT_KEY_CIV_RUSSIA_KIEVAN_RUS"
 				
-			return "TXT_KEY_CIV_RUSSIA_RUS"
+				return "TXT_KEY_CIV_RUSSIA_RUS"
 			
 		if isControlled(iPlayer, plots.rectangle(tEuropeanRussia).without(lEuropeanRussiaExceptions), 5):
 			return "TXT_KEY_CIV_RUSSIA_TSARDOM_OF"
+		
+		if isCurrentCapital(iPlayer, "Kiev"):
+			return "TXT_KEY_CIV_RUSSIA_GRAND_PRINCIPALITY"
 
 	elif iCiv == iNetherlands:
 		if bCityStates:
@@ -1954,7 +2002,7 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 				
 			return "TXT_KEY_SULTANATE_OF"
 	
-		if iEra == iMedieval and not bEmpire:
+		if not bEmpire and not tPlayer.isHasTech(iFirearms):
 			return "TXT_KEY_SULTANATE_OF"
 			
 	elif iCiv == iOttomans:
@@ -2007,12 +2055,11 @@ def specificTitle(iPlayer, lPreviousOwners=[]):
 			
 ### Leader methods ###
 
-def startingLeader(iPlayer):
-	iCiv = civ(iPlayer)
-
-	if iCiv in dStartingLeaders[scenario()]: return dStartingLeaders[scenario()][iCiv]
-	
-	return dStartingLeaders[i3000BC][iCiv]
+def startingLeader(identifier):
+	if not isinstance(identifier, Civ):
+		identifier = civ(identifier)
+		
+	return dStartingLeaders[scenario()].get(identifier, dStartingLeaders[i3000BC][identifier])
 	
 def leader(iPlayer):
 	iCiv = civ(iPlayer)
@@ -2032,9 +2079,9 @@ def leader(iPlayer):
 	bEmpire = isEmpire(iPlayer)
 	bCityStates = isCityStates(iPlayer)
 	bTheocracy = (civic.iReligion == iTheocracy)
-	bResurrected = data.players[iPlayer].iResurrections > 0
+	bResurrected = data.civs[iPlayer].iResurrections > 0
 	bMonarchy = not (isCommunist(iPlayer) or isFascist(iPlayer) or isRepublic(iPlayer))
-	iAnarchyTurns = data.players[iPlayer].iAnarchyTurns
+	iAnarchyTurns = data.civs[iPlayer].iAnarchyTurns
 	iEra = pPlayer.getCurrentEra()
 	iGameEra = game.getCurrentEra()
 	
@@ -2048,7 +2095,7 @@ def leader(iPlayer):
 	elif iCiv == iIndia:
 		if not bMonarchy and iEra >= iGlobal: return iGandhi
 		
-		if iEra >= iRenaissance: return iShahuji
+		if iEra >= iRenaissance: return iShivaji
 		
 		if getColumn(iPlayer) >= 5: return iChandragupta
 		
@@ -2137,7 +2184,7 @@ def leader(iPlayer):
 		if bEmpire: return iHayamWuruk
 		
 	elif iCiv == iMoors:
-		if not capital in plots.rectangle(tIberia): return iYaqub
+		if player(iPlayer).getNumCities() > 0 and not capital in plots.rectangle(tIberia): return iYaqub
 		
 	elif iCiv == iSpain:
 		if isFascist(iPlayer): return iFranco

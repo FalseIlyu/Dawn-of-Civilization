@@ -81,11 +81,7 @@ tEasternEurope = ((69, 48), (73, 64))
 
 # second French goal: control 40% of Europe and North America in 1800 AD
 # first English goal: colonize every continent by 1730 AD
-# third Maya goal: make contact with a European civilization before they have discovered America
 tNorthAmerica = ((10, 40), (37, 58))
-
-# third Maya goal: make contact with a European civilization before they have discovered America
-tSouthCentralAmerica = ((13, 3), (41, 39))
 
 # first Russian goal: found seven cities in Siberia by 1700 AD and build the Trans-Siberian Railway by 1920 AD
 tSiberia = ((82, 50), (112, 64))
@@ -133,7 +129,7 @@ tNorthCentralAmerica = ((3, 33), (37, 63))
 
 # first Colombian goal: allow no European civilizations in Peru, Gran Colombia, Guayanas and the Caribbean in 1870 AD
 tPeru = ((25, 16), (32, 24))
-tGranColombia = ((21, 25), (32, 35))
+tGranColombia = ((24, 25), (32, 32))
 tGuayanas = ((33, 27), (37, 31))
 tCaribbean = ((25, 33), (33, 39))
 
@@ -166,12 +162,15 @@ tHaojing = (104, 39)
 tJerusalem = (73, 38)
 tKaifeng = (103, 44)
 tKoenigsberg = (65, 54)
+tLhasa = (96, 43)
 tLuoyang = (103, 43)
 tMecca = (75, 33)
 tMemel = (65, 55)
 tMexico = (18, 37)
 tParis = (55, 50)
+tQiqihar = (107, 53)
 tRome = (60, 44)
+tSaigon = (104, 33)
 tShanghai = (106, 44)
 tStockholm = (63, 59)
 tTenochtitlan = (18, 37)

@@ -117,6 +117,13 @@ const wchar* CvInfoBase::getDescription(uint uiForm) const
 	return m_aCachedDescriptions[uiForm];
 }
 
+// Leoreth
+void CvInfoBase::setDescription(std::wstring szDescription)
+{
+	m_aCachedDescriptions.clear();
+	m_szTextKey = szDescription;
+}
+
 const wchar* CvInfoBase::getText() const
 {
 	// used instead of getDescription for Info entries that are not objects
@@ -6427,10 +6434,7 @@ void CvCivicInfo::read(FDataStreamBase* stream)
 {
 	CvInfoBase::read(stream);
 
-	uint uiFlag=0; // Leoreth: 1 for level experience modifier and minimal specialist counts, 
-				   // 2 for no resistance and no temporary unhappiness, 
-				   // 3 for unhappiness decay modifier
-				   // 4 for vassal trade modifier	
+	uint uiFlag=0;
 	stream->Read(&uiFlag);		// flag for expansion
 
 	stream->Read(&m_iCivicOptionType);
@@ -6482,9 +6486,9 @@ void CvCivicInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_iStateReligionBuildingProductionModifier);
 	stream->Read(&m_iStateReligionFreeExperience);
 	stream->Read(&m_iExpInBorderModifier);
-	if (uiFlag >= 1) stream->Read(&m_iLevelExperienceModifier); // Leoreth
-	if (uiFlag >= 3) stream->Read(&m_iUnhappinessDecayModifier); // Leoreth
-	if (uiFlag >= 4) stream->Read(&m_iVassalTradeModifier); // Leoreth
+	stream->Read(&m_iLevelExperienceModifier); // Leoreth
+	stream->Read(&m_iUnhappinessDecayModifier); // Leoreth
+	stream->Read(&m_iVassalTradeModifier); // Leoreth
 
 	stream->Read(&m_bMilitaryFoodProduction);
 	stream->Read(&m_bNoUnhealthyPopulation);
@@ -6498,8 +6502,8 @@ void CvCivicInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_bSlavery); // Leoreth
 	stream->Read(&m_bNoSlavery); // Leoreth
 	stream->Read(&m_bColonialSlavery); // Leoreth
-	if (uiFlag >= 2) stream->Read(&m_bNoResistance); // Leoreth
-	if (uiFlag >= 2) stream->Read(&m_bNoTemporaryUnhappiness); // Leoreth
+	stream->Read(&m_bNoResistance); // Leoreth
+	stream->Read(&m_bNoTemporaryUnhappiness); // Leoreth
 
 	// Arrays
 
@@ -6575,12 +6579,9 @@ void CvCivicInfo::read(FDataStreamBase* stream)
 	stream->Read(NUM_DOMAIN_TYPES, m_paiDomainExperienceModifiers);
 
 	// Leoreth
-	if (uiFlag >= 1)
-	{
-		SAFE_DELETE_ARRAY(m_paiMinimalSpecialistCounts);
-		m_paiMinimalSpecialistCounts = new int[GC.getNumSpecialistInfos()];
-		stream->Read(GC.getNumSpecialistInfos(), m_paiMinimalSpecialistCounts);
-	}
+	SAFE_DELETE_ARRAY(m_paiMinimalSpecialistCounts);
+	m_paiMinimalSpecialistCounts = new int[GC.getNumSpecialistInfos()];
+	stream->Read(GC.getNumSpecialistInfos(), m_paiMinimalSpecialistCounts);
 
 	SAFE_DELETE_ARRAY(m_pabHurry);
 	m_pabHurry = new bool[GC.getNumHurryInfos()];
@@ -6617,10 +6618,7 @@ void CvCivicInfo::write(FDataStreamBase* stream)
 {
 	CvInfoBase::write(stream);
 
-	uint uiFlag=4; // Leoreth: 1 for level experience modifier and minimal specialist count, 
-				   // 2 for no resistance, 
-	               // 3 for unhappiness decay modifier,
-				   // 4 for vassal trade modifier
+	uint uiFlag=0;
 	stream->Write(uiFlag);		// flag for expansion
 
 	stream->Write(m_iCivicOptionType);
@@ -7393,6 +7391,7 @@ m_piProductionTraits(NULL),
 m_piHappinessTraits(NULL),
 m_piSeaPlotYieldChange(NULL),
 m_piRiverPlotYieldChange(NULL),
+m_piFlatRiverPlotYieldChange(NULL), // Leoreth
 m_piGlobalSeaPlotYieldChange(NULL),
 m_piYieldChange(NULL),
 m_piYieldModifier(NULL),
@@ -7450,6 +7449,7 @@ CvBuildingInfo::~CvBuildingInfo()
 	SAFE_DELETE_ARRAY(m_piHappinessTraits);
 	SAFE_DELETE_ARRAY(m_piSeaPlotYieldChange);
 	SAFE_DELETE_ARRAY(m_piRiverPlotYieldChange);
+	SAFE_DELETE_ARRAY(m_piFlatRiverPlotYieldChange); // Leoreth
 	SAFE_DELETE_ARRAY(m_piGlobalSeaPlotYieldChange);
 	SAFE_DELETE_ARRAY(m_piYieldChange);
 	SAFE_DELETE_ARRAY(m_piYieldModifier);
@@ -8268,6 +8268,16 @@ int* CvBuildingInfo::getRiverPlotYieldChangeArray() const
 	return m_piRiverPlotYieldChange;
 }
 
+int CvBuildingInfo::getFlatRiverPlotYieldChange(int i) const
+{
+	return m_piFlatRiverPlotYieldChange ? m_piFlatRiverPlotYieldChange[i] : -1;
+}
+
+int* CvBuildingInfo::getFlatRiverPlotYieldChangeArray() const
+{
+	return m_piFlatRiverPlotYieldChange;
+}
+
 int CvBuildingInfo::getGlobalSeaPlotYieldChange(int i) const
 {
 	FAssertMsg(i < NUM_YIELD_TYPES, "Index out of bounds");
@@ -8691,7 +8701,7 @@ void CvBuildingInfo::read(FDataStreamBase* stream)
 {
 	CvHotkeyInfo::read(stream);
 
-	uint uiFlag=0; // Leoreth: 1 for corporation happiness/health modifiers, 2 for no resistance
+	uint uiFlag=0;
 	stream->Read(&uiFlag);	// flags for expansion
 
 	stream->Read(&m_iBuildingClassType);
@@ -8781,8 +8791,8 @@ void CvBuildingInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_iHealth);
 	stream->Read(&m_iAreaHealth);
 	stream->Read(&m_iGlobalHealth);
-	if (uiFlag >= 1) stream->Read(&m_iBuildingUnhealthModifier);
-	if (uiFlag >= 1) stream->Read(&m_iCorporationUnhealthModifier);
+	stream->Read(&m_iBuildingUnhealthModifier);
+	stream->Read(&m_iCorporationUnhealthModifier);
 	stream->Read(&m_iGlobalPopulationChange);
 	stream->Read(&m_iFreeTechs);
 	stream->Read(&m_iDefenseModifier);
@@ -8817,7 +8827,7 @@ void CvBuildingInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_bCenterInCity);
 	stream->Read(&m_bStateReligion);
 	stream->Read(&m_bAllowsNukes);
-	if (uiFlag >= 2) stream->Read(&m_bNoResistance); // Leoreth
+	stream->Read(&m_bNoResistance); // Leoreth
 
 	stream->ReadString(m_szConstructSound);
 	stream->ReadString(m_szArtDefineTag);
@@ -8846,6 +8856,11 @@ void CvBuildingInfo::read(FDataStreamBase* stream)
 	SAFE_DELETE_ARRAY(m_piRiverPlotYieldChange);
 	m_piRiverPlotYieldChange = new int[NUM_YIELD_TYPES];
 	stream->Read(NUM_YIELD_TYPES, m_piRiverPlotYieldChange);
+
+	// Leoreth
+	SAFE_DELETE_ARRAY(m_piFlatRiverPlotYieldChange);
+	m_piFlatRiverPlotYieldChange = new int[NUM_YIELD_TYPES];
+	stream->Read(NUM_YIELD_TYPES, m_piFlatRiverPlotYieldChange);
 
 	SAFE_DELETE_ARRAY(m_piGlobalSeaPlotYieldChange);
 	m_piGlobalSeaPlotYieldChange = new int[NUM_YIELD_TYPES];
@@ -9068,7 +9083,7 @@ void CvBuildingInfo::write(FDataStreamBase* stream)
 {
 	CvHotkeyInfo::write(stream);
 
-	uint uiFlag=2; // Leoreth: 1 for building/corporation health modifiers, 2 for no resistance
+	uint uiFlag=0;
 	stream->Write(uiFlag);		// flag for expansion
 
 	stream->Write(m_iBuildingClassType);
@@ -9206,6 +9221,7 @@ void CvBuildingInfo::write(FDataStreamBase* stream)
 	stream->Write(GC.getNumTraitInfos(), m_piHappinessTraits);
 	stream->Write(NUM_YIELD_TYPES, m_piSeaPlotYieldChange);
 	stream->Write(NUM_YIELD_TYPES, m_piRiverPlotYieldChange);
+	stream->Write(NUM_YIELD_TYPES, m_piFlatRiverPlotYieldChange); // Leoreth
 	stream->Write(NUM_YIELD_TYPES, m_piGlobalSeaPlotYieldChange);
 	stream->Write(NUM_YIELD_TYPES, m_piYieldChange);
 	stream->Write(NUM_YIELD_TYPES, m_piYieldModifier);
@@ -9567,6 +9583,17 @@ bool CvBuildingInfo::read(CvXMLLoadUtility* pXML)
 	else
 	{
 		pXML->InitList(&m_piRiverPlotYieldChange, NUM_YIELD_TYPES);
+	}
+
+	// Leoreth
+	if (gDLL->getXMLIFace()->SetToChildByTagName(pXML->GetXML(), "FlatRiverPlotYieldChanges"))
+	{
+		pXML->SetYields(&m_piFlatRiverPlotYieldChange);
+		gDLL->getXMLIFace()->SetToParent(pXML->GetXML());
+	}
+	else
+	{
+		pXML->InitList(&m_piFlatRiverPlotYieldChange, NUM_YIELD_TYPES);
 	}
 
 	// if we can set the current xml node to it's next sibling
@@ -10451,6 +10478,7 @@ m_iActionSoundScriptId(0),
 m_iDerivativeCiv(NO_CIVILIZATION),
 m_iStartingYear(0), // Leoreth
 m_iPaganReligion(0), // Leoreth
+m_iImpact(0), // Leoreth
 m_bPlayable(false),
 m_bAIPlayable(false),
 m_piCivilizationBuildings(NULL),
@@ -10459,6 +10487,7 @@ m_piCivilizationFreeUnitsClass(NULL),
 m_piCivilizationInitialCivics(NULL),
 m_piLoadingTime(NULL), // Leoreth
 m_pbLeaders(NULL),
+m_pbOriginalLeaders(NULL), // Leoreth
 m_pbCivilizationFreeBuildingClass(NULL),
 m_pbCivilizationFreeTechs(NULL),
 m_pbCivilizationDisableTechs(NULL),
@@ -10481,6 +10510,7 @@ CvCivilizationInfo::~CvCivilizationInfo()
 	SAFE_DELETE_ARRAY(m_piCivilizationInitialCivics);
 	SAFE_DELETE_ARRAY(m_piLoadingTime); // Leoreth
 	SAFE_DELETE_ARRAY(m_pbLeaders);
+	SAFE_DELETE_ARRAY(m_pbOriginalLeaders); // Leoreth
 	SAFE_DELETE_ARRAY(m_pbCivilizationFreeBuildingClass);
 	SAFE_DELETE_ARRAY(m_pbCivilizationFreeTechs);
 	SAFE_DELETE_ARRAY(m_pbCivilizationDisableTechs);
@@ -10535,6 +10565,11 @@ int CvCivilizationInfo::getPaganReligion() const
 	return m_iPaganReligion;
 }
 
+int CvCivilizationInfo::getImpact() const
+{
+	return m_iImpact;
+}
+
 bool CvCivilizationInfo::isAIPlayable() const
 {
 	return m_bAIPlayable;
@@ -10543,6 +10578,12 @@ bool CvCivilizationInfo::isAIPlayable() const
 bool CvCivilizationInfo::isPlayable() const
 {
 	return m_bPlayable;
+}
+
+// Leoreth
+void CvCivilizationInfo::setPlayable(bool bNewValue)
+{
+	m_bPlayable = bNewValue;
 }
 
 const wchar* CvCivilizationInfo::getShortDescription(uint uiForm)
@@ -10558,6 +10599,16 @@ const wchar* CvCivilizationInfo::getShortDescription(uint uiForm)
 const wchar* CvCivilizationInfo::getShortDescriptionKey() const
 {
 	return m_szShortDescriptionKey;
+}
+
+const wchar* CvCivilizationInfo::getDescriptionKeyPersistent() const
+{
+	return m_szDescriptionPersistent;
+}
+
+void CvCivilizationInfo::setDescriptionKeyPersistent(std::wstring szDescription)
+{
+	m_szDescriptionPersistent = szDescription;
 }
 
 const wchar* CvCivilizationInfo::getAdjective(uint uiForm)
@@ -10625,6 +10676,22 @@ bool CvCivilizationInfo::isLeaders(int i) const
 	FAssertMsg(i < GC.getNumLeaderHeadInfos(), "Index out of bounds");
 	FAssertMsg(i > -1, "Index out of bounds");
 	return m_pbLeaders ? m_pbLeaders[i] : false;
+}
+
+void CvCivilizationInfo::setLeader(int iLeader, bool bNewValue)
+{
+	if (m_pbLeaders)
+	{
+		m_pbLeaders[iLeader] = bNewValue;
+	}
+}
+
+// Leoreth
+bool CvCivilizationInfo::isOriginalLeader(int iLeader) const
+{
+	FAssertMsg(iLeader < GC.getNumLeaderHeadInfos(), "Index out of bounds");
+	FAssertMsg(iLeader > -1, "Index out of bounds");
+	return m_pbOriginalLeaders ? m_pbOriginalLeaders[iLeader] : false;
 }
 
 bool CvCivilizationInfo::isCivilizationFreeBuildingClass(int i) const
@@ -10700,7 +10767,7 @@ void CvCivilizationInfo::read(FDataStreamBase* stream)
 {
 	CvInfoBase::read(stream);
 
-	uint uiFlag=1; // 1: pagan religion
+	uint uiFlag=0;
 	stream->Read(&uiFlag);		// flag for expansion
 
 	stream->Read(&m_iDefaultPlayerColor);
@@ -10713,6 +10780,7 @@ void CvCivilizationInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_iDerivativeCiv);
 	stream->Read(&m_iStartingYear); // Leoreth
 	stream->Read(&m_iPaganReligion); // Leoreth
+	stream->Read(&m_iImpact); // Leoreth
 
 	stream->Read(&m_bAIPlayable);
 	stream->Read(&m_bPlayable);
@@ -10775,7 +10843,7 @@ void CvCivilizationInfo::write(FDataStreamBase* stream)
 {
 	CvInfoBase::write(stream);
 
-	uint uiFlag=1; // 1: pagan religion
+	uint uiFlag=0;
 	stream->Write(uiFlag);		// flag for expansion
 
 	stream->Write(m_iDefaultPlayerColor);
@@ -10854,6 +10922,11 @@ bool CvCivilizationInfo::read(CvXMLLoadUtility* pXML)
 
 	pXML->GetChildXmlValByName(szTextVal, "PaganReligion");
 	m_iPaganReligion = pXML->FindInInfoClass(szTextVal);
+
+	pXML->GetChildXmlValByName(szTextVal, "Impact");
+	m_iImpact = GC.getTypesEnum(szTextVal);
+
+	pXML->GetChildXmlValByName(m_szDescriptionPersistent, "Description");
 
 	// set the current xml node to it's next sibling and then
 	pXML->GetChildXmlValByName(&m_bPlayable, "bPlayable");
@@ -11068,6 +11141,9 @@ bool CvCivilizationInfo::read(CvXMLLoadUtility* pXML)
 	}
 
 	pXML->SetVariableListTagPair(&m_pbLeaders, "Leaders", sizeof(GC.getLeaderHeadInfo((LeaderHeadTypes)0)), GC.getNumLeaderHeadInfos());
+
+	// Leoreth: cache xml leaders to allow modifying them at runtime
+	pXML->SetVariableListTagPair(&m_pbOriginalLeaders, "Leaders", sizeof(GC.getLeaderHeadInfo((LeaderHeadTypes)0)), GC.getNumLeaderHeadInfos());
 
 	pXML->GetChildXmlValByName(szTextVal, "CivilizationSelectionSound");
 
@@ -13414,7 +13490,7 @@ void CvImprovementInfo::read(FDataStreamBase* stream)
 {
 	CvInfoBase::read(stream);
 
-	uint uiFlag=0; // Leoreth: 1
+	uint uiFlag=0;
 	stream->Read(&uiFlag);		// flag for expansion
 
 	stream->Read(&m_iAdvancedStartCost);
@@ -13475,7 +13551,7 @@ void CvImprovementInfo::read(FDataStreamBase* stream)
 
 	SAFE_DELETE_ARRAY(m_piCoastalYieldChange);
 	m_piCoastalYieldChange = new int[NUM_YIELD_TYPES];
-	if (uiFlag >= 1) stream->Read(NUM_YIELD_TYPES, m_piCoastalYieldChange);
+	stream->Read(NUM_YIELD_TYPES, m_piCoastalYieldChange);
 
 	SAFE_DELETE_ARRAY(m_pbTerrainMakesValid);
 	m_pbTerrainMakesValid = new bool[GC.getNumTerrainInfos()];
@@ -13530,7 +13606,7 @@ void CvImprovementInfo::write(FDataStreamBase* stream)
 {
 	CvInfoBase::write(stream);
 
-	uint uiFlag=1;
+	uint uiFlag=0;
 	stream->Write(uiFlag);		// flag for expansion
 
 	stream->Write(m_iAdvancedStartCost);

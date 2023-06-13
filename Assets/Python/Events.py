@@ -3,6 +3,8 @@ import inspect
 
 from Core import *
 
+from GoalHandlers import event_handler_registry
+
 
 victory_handlers = appenddict()
 
@@ -57,14 +59,16 @@ events.addEvent("wonderBuilt")
 events.addEvent("immigration")
 events.addEvent("collapse")
 events.addEvent("periodChange")
+events.addEvent("playerPeriodChange")
 events.addEvent("birth")
-events.addEvent("rebirth")
 events.addEvent("resurrection")
-events.addEvent("switch")
 events.addEvent("enslave")
 events.addEvent("combatGold")
 events.addEvent("combatFood")
 events.addEvent("sacrificeHappiness")
+events.addEvent("prepareBirth")
+events.addEvent("flip")
+events.addEvent("conquerors")
 
 
 @handler("buildingBuilt")
@@ -101,18 +105,13 @@ def firstCityOnCityBuilt(city):
 def wonderBuiltOnBuildingBuilt(city, iBuilding):
 	if isWorldWonderClass(infos.building(iBuilding).getBuildingClassType()):
 		events.fireEvent("wonderBuilt", city, iBuilding)
-
-
-@handler("GameStart")
-def resetVictoryHandlersOnGameStart():
-	reset_victory_handlers()
-
+		
 
 @handler("PythonReloaded")
-def resetVictoryHandlersOnPythonReloaded():
-	reset_victory_handlers()
+def resetHandlersOnPythonReloaded():
+	event_handler_registry.reset()
 
 
 @handler("OnLoad")
-def resetVictoryHandlersOnLoad():
-	reset_victory_handlers()
+def resetHandlersOnLoad():
+	event_handler_registry.reset()

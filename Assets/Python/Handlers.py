@@ -15,6 +15,7 @@ import ScreensHandler
 import AIWars
 import Barbs
 import Civics
+import Collapse
 import Communications
 import Companies
 import Congresses
@@ -22,15 +23,17 @@ import DynamicCivs
 import EventSigns
 import GreatPeople
 import History
+import Logging
+import Messages
 import Periods
 import Plague
 import Religions
 import Resources
-import RiseAndFall
+import Resurrection
+import Rise
 import Rules
 import Shortcuts
 import Stability
 import UniquePowers
 import Victories
-import Victory
 import Wonders

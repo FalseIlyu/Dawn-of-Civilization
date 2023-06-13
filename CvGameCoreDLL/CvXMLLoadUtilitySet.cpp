@@ -192,6 +192,11 @@ bool CvXMLLoadUtility::SetGlobalDefines()
 		return false;
 	}
 
+	if (!ReadGlobalDefines("xml\\GlobalDefinesVersion.xml", cache))
+	{
+		return false;
+	}
+
 	if (!ReadGlobalDefines("xml\\PythonCallbackDefines.xml", cache))
 	{
 		return false;
@@ -430,6 +435,11 @@ bool CvXMLLoadUtility::SetGlobalTypes()
 		iEnumVal = NUM_DIRECTION_TYPES;
 		SetGlobalStringArray(&GC.getDirectionTypes(), "Civ4Types/DirectionTypes/DirectionType", &iEnumVal, true);
 		SetGlobalStringArray(&GC.getFootstepAudioTypes(), "Civ4Types/FootstepAudioTypes/FootstepAudioType", &GC.getNumFootstepAudioTypes());
+
+		// Leoreth: we just want to read the XML tags and not store the values
+		CvString* impactTypes;
+		int iNumImpactTypes;
+		SetGlobalStringArray(&impactTypes, "Civ4Types/ImpactTypes/ImpactType", &iNumImpactTypes);
 
 		gDLL->getXMLIFace()->SetToParent(m_pFXml);
 		gDLL->getXMLIFace()->SetToParent(m_pFXml);
